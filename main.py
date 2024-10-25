@@ -31,7 +31,7 @@ if __name__ == "__main__":
                                           end_date=config.end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
-                                          limit= 365 * 12, 
+                                          limit= 4 * 365 * 12, 
                                           is_training=True)
 
     # Prepare training and validation data
