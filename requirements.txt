@@ -1,0 +1,8 @@
+alpaca-trade-api
+pandas
+matplotlib
+mplfinance
+python-dotenv
+scikit-learn
+torch
+torchvision
