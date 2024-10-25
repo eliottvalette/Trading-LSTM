@@ -1,9 +1,9 @@
 from config import Config
-from data.data_utils import prepare_data, create_test_loader
+from data.data_utils import prepare_data, create_test_loader, prepare_training_validation_data
 from models.model import LSTMModel
 from models.train import run_training
 from models.evaluate import simulate_investment
-from utils.visualization import plot_training_metrics
+from utils.visualisation import plot_training_metrics
 from torch.optim import Adam, lr_scheduler
 import torch.nn as nn
 
@@ -16,11 +16,16 @@ if __name__ == "__main__":
     config = Config()
 
     # Prepare data
-    df, dataset_scaled, sc = prepare_data(config.symbol, config.start_date, config.end_date,
-                                          config.timeframe, is_filter=False, limit=4000, is_training=True)
+    df, dataset_scaled, sc = prepare_data(symbol = config.symbol, 
+                                          start_date = config.start_date, 
+                                          end_date = config.end_date,
+                                          timeframe = config.timeframe, 
+                                          is_filter=False, 
+                                          limit=4000, 
+                                          is_training=True)
 
     # Prepare training and validation data
-    X, y, train_loader, valid_loader = prepare_data(config.symbol, config.start_date, config.end_date,
+    X, y, train_loader, valid_loader = prepare_training_validation_data(config.symbol, config.start_date, config.end_date,
                                                     config.timeframe, config.backcandles, sc)
 
     # Initialize model, optimizer, and scheduler

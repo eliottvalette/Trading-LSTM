@@ -1,4 +1,5 @@
 import os
+import torch
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
@@ -47,3 +48,31 @@ def create_test_loader(symbol, start_date, end_date, timeframe, backcandles, sc,
     X, y = np.array(X).transpose(0, 2, 1), np.array(y_dataset[1 + backcandles:, -1]).reshape(-1, 1)
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     return DataLoader(test_dataset, batch_size=1, shuffle=False), df, dataset_scaled
+
+def prepare_training_validation_data(dataset_scaled, backcandles, train_ratio=0.8):
+    X_dataset = dataset_scaled[['open', 'high', 'low', 'close', 'volume']]
+    y_dataset = dataset_scaled[['interval_evolution']].values
+
+    # Create sliding window feature set
+    X = []
+    y = []
+    for i in range(backcandles, len(X_dataset) - 1):
+        window = []
+        for j in range(X_dataset.shape[1]):
+            window.append(X_dataset.iloc[i-backcandles:i, j].values)
+        X.append(np.array(window))
+    X = np.array(X)
+    X = X.transpose(0, 2, 1)
+
+    y = np.array(y_dataset[1 + backcandles:, -1])
+    y = np.reshape(y, (len(y), 1))
+
+    # Split data into training and validation datasets
+    train_size = int(train_ratio * len(X))
+    train_dataset = TensorDataset(torch.tensor(X[:train_size], dtype=torch.float32), torch.tensor(y[:train_size], dtype=torch.float32))
+    valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
+
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False)
+
+    return train_loader, valid_loader
