@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-def simulate_investment(model, dataloader, capital, shares_owned, scaler):
+def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold):
     model.eval()
     true_evolutions = []
     predicted_evolutions = []

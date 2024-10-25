@@ -34,6 +34,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
         sc = MinMaxScaler(feature_range=(0, 1))
         sc.fit(df[['open', 'high', 'low', 'close', 'volume', 'interval_evolution']])
     dataset_scaled = sc.transform(df[['open', 'high', 'low', 'close', 'volume', 'interval_evolution']])
+    dataset_scaled = pd.DataFrame(dataset_scaled, columns=['open', 'high', 'low', 'close', 'volume', 'interval_evolution'])
     return df, dataset_scaled, sc
 
 def create_test_loader(symbol, start_date, end_date, timeframe, backcandles, sc, is_filter, limit=1000):

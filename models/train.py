@@ -1,6 +1,8 @@
 import copy
 import time
 from tqdm import tqdm
+from collections import defaultdict
+import torch
 
 def train_one_epoch(model, optimizer, criterion, dataloader, epoch):
     model.train()
