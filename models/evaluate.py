@@ -1,12 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import pandas as pd
 
 def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold):
     model.eval()
     true_evolutions = []
     predicted_evolutions = []
     current_prices = []
+    portfolio_values = []
+    initial_capital = capital
 
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
@@ -71,7 +74,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
     plt.title('Portfolio Value Over Time')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    plt.savefig('logs/portfolio.png')
 
     # Plot Actual Stock
     plt.figure(figsize=(12, 6))
@@ -81,7 +84,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
     plt.title('Actual Stock Price Over Time')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    plt.savefig('logs/stock.png')
 
     # Plot Predictions
     plt.figure(figsize=(12, 6))
@@ -92,7 +95,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
     plt.title('Evolution Predictions')
     plt.legend()
     plt.grid(True)
-    plt.show()
+    plt.savefig('logs/evolutions.png')
 
     predicted_evolutions_df = pd.DataFrame(predicted_evolutions, columns=['Predicted Evolution'])
     print(predicted_evolutions_df.describe())

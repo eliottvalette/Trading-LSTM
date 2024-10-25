@@ -8,6 +8,15 @@ from torch.optim import Adam, lr_scheduler
 import torch.nn as nn
 import pandas as pd
 
+import torch
+import numpy as np
+import random as rd
+
+seed = 42
+torch.manual_seed(seed)
+np.random.seed(seed)
+rd.seed(seed)
+
 def criterion(outputs, targets):
     loss = nn.MSELoss()(outputs, targets)
     return loss
@@ -22,17 +31,18 @@ if __name__ == "__main__":
                                           end_date=config.end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
-                                          limit=4000, 
+                                          limit= 365 * 12, 
                                           is_training=True)
-
-    # Convert dataset_scaled to DataFrame if it is still in numpy format
-    dataset_scaled = pd.DataFrame(dataset_scaled, columns=['open', 'high', 'low', 'close', 'volume', 'interval_evolution'])
 
     # Prepare training and validation data
     train_loader, valid_loader = prepare_training_validation_data(dataset_scaled, config.backcandles)
 
     # Initialize model, optimizer, and scheduler
-    lstm_model = LSTMModel(embedding_dim=5, hidden_dim=64)
+    lstm_model = LSTMModel(embedding_dim=5, 
+                           hidden_dim = 64,
+                           num_layers=2, 
+                           dropout_prob=0.2)
+    
     optimizer = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
@@ -59,7 +69,7 @@ if __name__ == "__main__":
         backcandles= config.backcandles, 
         sc = sc, 
         is_filter=False, 
-        limit=1000
+        limit= 9 * 30 * 12
     )
 
     # Run simulation

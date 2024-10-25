@@ -1,5 +1,6 @@
 
 import matplotlib.pyplot as plt
+import os
 
 def plot_training_metrics(history):
     epochs = range(1, len(history['Train Loss']) + 1)
@@ -18,4 +19,4 @@ def plot_training_metrics(history):
     plt.title('Learning Rate')
     plt.legend()
     plt.tight_layout()
-    plt.show()
+    plt.savefig('logs/metrics.png')

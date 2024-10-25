@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 import alpaca_trade_api.rest as rest
+import os
 
 class Config:
     def __init__(self):
-        self.seed = 42
         self.symbol = 'AAPL'
         self.backcandles = 60
         self.timeframe = rest.TimeFrame(2, rest.TimeFrameUnit.Hour)

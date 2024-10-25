@@ -50,7 +50,7 @@ def create_test_loader(symbol, start_date, end_date, timeframe, backcandles, sc,
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     return DataLoader(test_dataset, batch_size=1, shuffle=False), df, dataset_scaled
 
-def prepare_training_validation_data(dataset_scaled, backcandles, train_ratio=0.8):
+def prepare_training_validation_data(dataset_scaled, backcandles, train_ratio=0.9):
     X_dataset = dataset_scaled[['open', 'high', 'low', 'close', 'volume']]
     y_dataset = dataset_scaled[['interval_evolution']].values
 

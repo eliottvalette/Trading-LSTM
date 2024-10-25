@@ -52,7 +52,6 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
     # Deep copies the initial model weights to save the best model later
     best_model_wts = copy.deepcopy(model.state_dict())
     
-    # Initializes the best ACC to 0.
     best_epoch_loss = 300
     
     history = defaultdict(list)
