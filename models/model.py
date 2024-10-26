@@ -9,7 +9,8 @@ class LSTMModel(nn.Module):
         self.lstm = nn.LSTM(embedding_dim, 
                             hidden_dim, 
                             num_layers=num_layers, 
-                            dropout=dropout_prob, batch_first=True)
+                            dropout=dropout_prob, 
+                            batch_first=True)
         
         self.hidden2tag = nn.Linear(hidden_dim, 1)
         self.dropout = nn.Dropout(dropout_prob)

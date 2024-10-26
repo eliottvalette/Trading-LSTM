@@ -31,7 +31,7 @@ if __name__ == "__main__":
                                           end_date=config.end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
-                                          limit= 4 * 365 * 12, 
+                                          limit= 365 * 12, 
                                           is_training=True)
 
     # Prepare training and validation data
@@ -83,5 +83,7 @@ if __name__ == "__main__":
             shares_owned = config.shares_owned, 
             scaler = train_sc,
             buy_threshold = 0.01,
-            sell_threshold = -0.01
+            sell_threshold = -0.01,
+            test_df = test_df,
+            backcandles=config.backcandles,
             )

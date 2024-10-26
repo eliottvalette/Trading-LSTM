@@ -3,39 +3,34 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
 
-def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold):
+def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles):
     model.eval()
     true_evolutions = []
     predicted_evolutions = []
     current_prices = []
     portfolio_values = []
+    timestamps = []
     initial_capital = capital
 
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
+        # Correct the timestamp index by adding the backcandles delay
+        timestamps.append(test_df.iloc[step + backcandles, 0])
+        current_price = features[:, -1, 3].numpy().flatten()[0] # Current closing price [fourth column of the last row]
+
         # Predicted and true prices in normalized form
-        predicted_price_norm = model(features).detach().numpy().flatten()
-        true_price_norm = targets.numpy().flatten()
+        predicted_evolution_norm = model(features).detach().numpy().flatten()
+        true_evolution_norm = targets.numpy().flatten()
 
         # Create dummy arrays to inverse transform
-        dummy_pred = np.zeros((1, 5))
-        dummy_pred[:, 3] = predicted_price_norm
-        dummy_target = np.zeros((1, 5))
-        dummy_target[:, 3] = true_price_norm
+        dummy_pred = np.zeros((1, 6))
+        dummy_pred[:, 5] = predicted_evolution_norm
+        dummy_target = np.zeros((1, 6))
+        dummy_target[:, 5] = true_evolution_norm
 
-        # Inverse transform to get prices in original scale
-        predicted_price_original = scaler.inverse_transform(dummy_pred)[:, 3][0]
-        true_price_original = scaler.inverse_transform(dummy_target)[:, 3][0]
+        predicted_evolution = scaler.inverse_transform(dummy_pred)[:, 5][0]
+        true_evolution = scaler.inverse_transform(dummy_target)[:, 5][0]
 
-        # Current price in original scale
-        current_price_norm = features[:, -1, 3].numpy().flatten()[0]
-        dummy_price = np.zeros((1, 5))
-        dummy_price[:, 3] = current_price_norm
-        current_price = scaler.inverse_transform(dummy_price)[:, 3][0]
-
-        # Calculate price increase percentage
-        predicted_evolution = (predicted_price_original - current_price) / current_price
-        true_evolution = (true_price_original - current_price) / current_price
 
         # Simulate investment based on model prediction
         if predicted_evolution >= buy_threshold and capital >= current_price:
@@ -58,14 +53,16 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
         predicted_evolutions.append(predicted_evolution)
         current_prices.append(current_price)
 
+    # Convert timestamps to a datetime format
+    timestamps = pd.to_datetime(timestamps)
 
     print("Final Portfolio Value: {:.2f}".format(portfolio_values[-1]))
     print("Augmentation of the portfolio: {:.2%}".format((portfolio_values[-1] - initial_capital) / initial_capital))
 
     # Plot final results
     plt.figure(figsize=(12, 6))
-    plt.plot(portfolio_values, label='Portfolio Value', color='blue')
-    plt.xlabel('Time Step')
+    plt.plot(timestamps, portfolio_values, label='Portfolio Value', color='blue')
+    plt.xlabel('Time')
     plt.ylabel('Portfolio Value in USD')
     plt.title('Portfolio Value Over Time')
     plt.legend()
@@ -74,8 +71,8 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
 
     # Plot Actual Stock
     plt.figure(figsize=(12, 6))
-    plt.plot(current_prices, label='Actual Stock Price', color='green')
-    plt.xlabel('Time Step')
+    plt.plot(timestamps, current_prices, label='Actual Stock Price', color='green')
+    plt.xlabel('Time')
     plt.ylabel('Stock Price in USD')
     plt.title('Actual Stock Price Over Time')
     plt.legend()
@@ -84,9 +81,9 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
 
     # Plot Predictions
     plt.figure(figsize=(12, 6))
-    plt.plot(true_evolutions, label='True Evolution', color='red')
-    plt.plot(predicted_evolutions, label='Predicted Evolution', color='orange')
-    plt.xlabel('Time Step')
+    plt.plot(timestamps, true_evolutions, label='True Evolution', color='red')
+    plt.plot(timestamps, predicted_evolutions, label='Predicted Evolution', color='orange')
+    plt.xlabel('Time')
     plt.ylabel('Price Change Prediction (Original Scale)')
     plt.title('Evolution Predictions')
     plt.legend()

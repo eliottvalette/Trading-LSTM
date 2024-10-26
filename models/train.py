@@ -8,18 +8,25 @@ def train_one_epoch(model, optimizer, criterion, dataloader, epoch):
     model.train()
     running_loss = 0.0
     dataset_size = 0
+
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
+
         batch_size = features.size(0)
+        
         optimizer.zero_grad()
+        
         predicted_evolution = model(features)
+        
         loss = criterion(predicted_evolution, targets)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
+        
         running_loss += loss.item() * batch_size
         dataset_size += batch_size
         epoch_loss = running_loss / dataset_size
+        
         bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)
     return epoch_loss
 
@@ -37,12 +44,12 @@ def valid_one_epoch(model, criterion, dataloader, epoch):
         # Compute the loss
         loss = criterion(predicted_evolution, targets)
 
-        running_loss += (loss.item() * batch_size)
+        running_loss += loss.item() * batch_size
         dataset_size += batch_size
 
         epoch_loss = running_loss / dataset_size
 
-        bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)        
+        bar.set_postfix(Epoch=epoch, Valid_Loss=epoch_loss)        
     return epoch_loss
 
 def run_training(model, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs):
@@ -79,7 +86,7 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
         
         # Save the model if it's getting better results
         if best_epoch_loss >= val_epoch_loss:
-            print(f"{best_epoch_loss} Validation AUROC Improved ({best_epoch_loss} ---> {val_epoch_loss})")
+            print(f"{best_epoch_loss} Best LOSS Improved ({best_epoch_loss} ---> {val_epoch_loss})")
             
             best_epoch_loss = val_epoch_loss
             
