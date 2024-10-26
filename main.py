@@ -66,7 +66,7 @@ if __name__ == "__main__":
                                           end_date=config.test_end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
-                                          limit= 1 * 305 * 12, 
+                                          limit= 4 * 365 * 12, 
                                           is_training=False,
                                           sc = train_sc)
 
@@ -82,8 +82,8 @@ if __name__ == "__main__":
             capital = config.initial_capital, 
             shares_owned = config.shares_owned, 
             scaler = train_sc,
-            buy_threshold = 0.01,
-            sell_threshold = -0.01,
+            buy_threshold = 0.02,
+            sell_threshold = -0.02,
             test_df = test_df,
             backcandles=config.backcandles,
             )

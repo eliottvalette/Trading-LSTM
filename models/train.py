@@ -31,6 +31,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, epoch):
     return epoch_loss
 
 def valid_one_epoch(model, criterion, dataloader, epoch):    
+    model.eval()
     dataset_size = 0
     running_loss = 0.0
     
@@ -94,7 +95,7 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
             best_model_wts = copy.deepcopy(model.state_dict())
             
             # Saves the weights in the working directory
-            PATH = f"saved_weights/LSTM_Loss_{val_epoch_loss:.4f}_epoch{epoch}.bin".format(val_epoch_loss, epoch)
+            PATH = f"saved_weights/LSTM_Loss_{val_epoch_loss:.8f}_epoch{epoch}.bin"
             torch.save(model.state_dict(), PATH)
             
             print(f"Model Saved")
@@ -110,6 +111,9 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
     print('Training complete in {:.0f}h {:.0f}m {:.0f}s'.format(
         time_elapsed // 3600 , (time_elapsed % 3600) // 60, (time_elapsed % 3600) % 60))
     print("Best LOSS: {:.6f}".format(best_epoch_loss))
+
+    FINAL_PATH = f"saved_weights/Best_LSTM_Loss_{val_epoch_loss:.8f}.bin"
+    torch.save(model.state_dict(), FINAL_PATH)
     
     # load best model weights
     model.load_state_dict(best_model_wts)

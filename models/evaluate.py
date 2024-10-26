@@ -3,6 +3,42 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pandas as pd
 
+def plot_portfolio_value(timestamps, portfolio_values):
+    """Plot portfolio value over time."""
+    plt.figure(figsize=(12, 6))
+    plt.plot(timestamps, portfolio_values, label='Portfolio Value', color='blue')
+    plt.xlabel('Time')
+    plt.ylabel('Portfolio Value in USD')
+    plt.title('Portfolio Value Over Time')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('logs/portfolio.png')
+
+
+def plot_actual_stock_price(timestamps, current_prices):
+    """Plot actual stock price over time."""
+    plt.figure(figsize=(12, 6))
+    plt.plot(timestamps, current_prices, label='Actual Stock Price', color='green')
+    plt.xlabel('Time')
+    plt.ylabel('Stock Price in USD')
+    plt.title('Actual Stock Price Over Time')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('logs/stock.png')
+
+
+def plot_evolutions(timestamps, true_evolutions, predicted_evolutions):
+    """Plot true and predicted evolutions over time."""
+    plt.figure(figsize=(12, 6))
+    plt.plot(timestamps, true_evolutions, label='True Evolution', color='red')
+    plt.plot(timestamps, predicted_evolutions, label='Predicted Evolution', color='orange')
+    plt.xlabel('Time')
+    plt.ylabel('Price Change Prediction (Original Scale)')
+    plt.title('Evolution Predictions')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('logs/evolutions.png')
+
 def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles):
     model.eval()
     true_evolutions = []
@@ -59,36 +95,10 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
     print("Final Portfolio Value: {:.2f}".format(portfolio_values[-1]))
     print("Augmentation of the portfolio: {:.2%}".format((portfolio_values[-1] - initial_capital) / initial_capital))
 
-    # Plot final results
-    plt.figure(figsize=(12, 6))
-    plt.plot(timestamps, portfolio_values, label='Portfolio Value', color='blue')
-    plt.xlabel('Time')
-    plt.ylabel('Portfolio Value in USD')
-    plt.title('Portfolio Value Over Time')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('logs/portfolio.png')
-
-    # Plot Actual Stock
-    plt.figure(figsize=(12, 6))
-    plt.plot(timestamps, current_prices, label='Actual Stock Price', color='green')
-    plt.xlabel('Time')
-    plt.ylabel('Stock Price in USD')
-    plt.title('Actual Stock Price Over Time')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('logs/stock.png')
-
-    # Plot Predictions
-    plt.figure(figsize=(12, 6))
-    plt.plot(timestamps, true_evolutions, label='True Evolution', color='red')
-    plt.plot(timestamps, predicted_evolutions, label='Predicted Evolution', color='orange')
-    plt.xlabel('Time')
-    plt.ylabel('Price Change Prediction (Original Scale)')
-    plt.title('Evolution Predictions')
-    plt.legend()
-    plt.grid(True)
-    plt.savefig('logs/evolutions.png')
+    # Plot results
+    plot_portfolio_value(timestamps, portfolio_values)
+    plot_actual_stock_price(timestamps, current_prices)
+    plot_evolutions(timestamps, true_evolutions, predicted_evolutions)
 
     predicted_evolutions_df = pd.DataFrame(predicted_evolutions, columns=['Predicted Evolution'])
     print(predicted_evolutions_df.describe())

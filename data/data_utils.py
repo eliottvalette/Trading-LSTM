@@ -2,11 +2,12 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 from dotenv import load_dotenv
 import alpaca_trade_api as tradeapi
 import alpaca_trade_api.rest as rest
 from torch.utils.data import TensorDataset, DataLoader
+from sklearn.model_selection import train_test_split
 
 load_dotenv()
 API_KEY = os.getenv('ALPACA_API_KEY')
@@ -25,14 +26,40 @@ def get_historical_data(symbol, timeframe, start_date, end_date, limit=10000):
         print(f"Error while fetching historical data: {e}")
         return None
 
+def filter_close(df):
+    start_date = min(df['time'])
+    end_date = max(df['time'])
+    filtered_rows = []
+
+    for date in pd.date_range(start=start_date, end=end_date):
+        date_str = date.strftime('%Y-%m-%d')
+
+        try:
+            calendar = api.get_calendar(date_str)[0]
+            open_time, close_time = calendar.open, calendar.close
+            for index, row in df.iterrows():
+                if row['time'].date() == date.date() and open_time <= row['time'].time() <= close_time:
+                    filtered_rows.append(row)
+        except IndexError:
+            # Handle case when the market was closed on a specific date (e.g., weekend or holiday)
+            continue
+    
+    filtered_df = pd.DataFrame(filtered_rows)
+    filtered_df.index = np.arange(len(filtered_df))
+    
+    return filtered_df
+
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None):
     df = get_historical_data(symbol, timeframe, start_date, end_date, limit)
+    if is_filter :
+            # Filter to keep only open market hours
+            df = filter_close(df)
 
     df['close_change'] = df['close'].diff().fillna(0)
     
     # Scale data
     if is_training:
-        sc = MinMaxScaler(feature_range=(0, 1))
+        sc = StandardScaler()
         sc.fit(df[['open', 'high', 'low', 'close', 'volume', 'close_change']])
     dataset_scaled = sc.transform(df[['open', 'high', 'low', 'close', 'volume', 'close_change']])
     dataset_scaled = pd.DataFrame(dataset_scaled, columns=['open', 'high', 'low', 'close', 'volume', 'close_change'], index= df['time'])
@@ -50,13 +77,17 @@ def training_loaders(dataset_scaled, backcandles, train_ratio=0.94):
         X.append(np.array(window))
     X, y = np.array(X).transpose(0, 2, 1), np.array(y_dataset[1 + backcandles:, -1]).reshape(-1, 1)
 
-    # Split data into training and validation datasets
-    train_size = int(train_ratio * len(X))
-    train_dataset = TensorDataset(torch.tensor(X[:train_size], dtype=torch.float32), torch.tensor(y[:train_size], dtype=torch.float32))
-    valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
+    # Split data into training and validation datasets using train_test_split
+    train_size = int(len(X) * train_ratio)
+    val_size = len(X) - train_size
+    train_X, val_X, train_y, val_y = train_test_split(X, y, test_size=val_size, random_state=42)
+
+    # Convert data to PyTorch DataLoader objects
+    train_dataset = TensorDataset(torch.tensor(train_X, dtype=torch.float32), torch.tensor(train_y, dtype=torch.float32))
+    valid_dataset = TensorDataset(torch.tensor(val_X, dtype=torch.float32), torch.tensor(val_y, dtype=torch.float32))
 
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False)
+    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=True)
 
     return train_loader, valid_loader
 
