@@ -14,33 +14,21 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
         # Predicted change in normalized price
-        predicted_evolution = model(features).detach().numpy().flatten()
-        true_evolution = targets.numpy().flatten()
+        predicted_price = model(features).detach().numpy().flatten()
+        true_price = targets.numpy().flatten()
 
         # Dummy arrays for inverse transform
-        dummy_array_pred = np.zeros((1, 6))  # Create a dummy array with the same number of features used during training
-        dummy_array_pred[:, -1] = predicted_evolution  # Assign the predicted evolution to the corresponding position
+        dummy_array_pred = np.zeros((1, 5))  # Create a dummy array with the same number of features used during training
+        dummy_array_pred[:, 3] = predicted_price  # Assign the predicted evolution to the corresponding position
         
         dummy_array_target = np.zeros((1, 6))
-        dummy_array_target[:, -1] = true_evolution
+        dummy_array_target[:, 3] = true_price
 
         # Inverse transform to get original scale
-        predicted_original = scaler.inverse_transform(dummy_array_pred)[:, -1]  # Use only the interval_evolution column
-        true_original = scaler.inverse_transform(dummy_array_target)[:, -1]
+        predicted_price_original = scaler.inverse_transform(dummy_array_pred)[:, 3]  # Use only the interval_evolution column
+        true_price_original = scaler.inverse_transform(dummy_array_target)[:, 3]
 
-        # Get current 'close' price in normalized form
-        current_price_norm = features[:, -1, 3].numpy()  # Get current 'close' price (normalized)
-        current_price_norm = current_price_norm[0]  # Extract the scalar value from the array
-
-        # Create a dummy array for inverse transform of current price
-        dummy_array_price = np.zeros((1, 6))  # Create a dummy array to inverse transform the current price
-        dummy_array_price[:, 3] = current_price_norm  # Assign the current 'close' price to the corresponding position
-
-        # Inverse transform to get current price in original scale
-        current_price = scaler.inverse_transform(dummy_array_price)[:, 3]
-
-        # Extract the scalar value from the transformed array
-        current_price = current_price[0]
+        predicted_evolution = predicted_price_original[0] - current_price
 
         # Simulate investment based on model prediction
         if predicted_original >= buy_threshold and capital >= current_price:

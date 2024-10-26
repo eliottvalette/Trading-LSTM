@@ -27,20 +27,19 @@ def get_historical_data(symbol, timeframe, start_date, end_date, limit=10000):
 
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None):
     df = get_historical_data(symbol, timeframe, start_date, end_date, limit)
-    df['interval_evolution'] = df['close'].diff().shift(-1).fillna(0)
     
     # Scale data
     if is_training:
         sc = MinMaxScaler(feature_range=(0, 1))
-        sc.fit(df[['open', 'high', 'low', 'close', 'volume', 'interval_evolution']])
-    dataset_scaled = sc.transform(df[['open', 'high', 'low', 'close', 'volume', 'interval_evolution']])
-    dataset_scaled = pd.DataFrame(dataset_scaled, columns=['open', 'high', 'low', 'close', 'volume', 'interval_evolution'])
+        sc.fit(df[['open', 'high', 'low', 'close', 'volume']])
+    dataset_scaled = sc.transform(df[['open', 'high', 'low', 'close', 'volume']])
+    dataset_scaled = pd.DataFrame(dataset_scaled, columns=['open', 'high', 'low', 'close', 'volume'])
     return df, dataset_scaled, sc
 
-def create_test_loader(symbol, start_date, end_date, timeframe, backcandles, sc, is_filter, limit=1000):
-    df, dataset_scaled, _ = prepare_data(symbol, start_date, end_date, timeframe, is_filter, limit, is_training=False, sc=sc)
+def create_test_loader(dataset_scaled, backcandles):
     X_dataset = dataset_scaled[['open', 'high', 'low', 'close', 'volume']]
-    y_dataset = dataset_scaled[['interval_evolution']].values
+    y_dataset = dataset_scaled[['close']].values
+
     # Sliding window feature set
     X, y = [], []
     for i in range(backcandles, len(X_dataset) - 1):
@@ -48,11 +47,11 @@ def create_test_loader(symbol, start_date, end_date, timeframe, backcandles, sc,
         X.append(np.array(window))
     X, y = np.array(X).transpose(0, 2, 1), np.array(y_dataset[1 + backcandles:, -1]).reshape(-1, 1)
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
-    return DataLoader(test_dataset, batch_size=1, shuffle=False), df, dataset_scaled
+    return DataLoader(test_dataset, batch_size=1, shuffle=False)
 
-def prepare_training_validation_data(dataset_scaled, backcandles, train_ratio=0.98):
+def training_loaders(dataset_scaled, backcandles, train_ratio=0.94):
     X_dataset = dataset_scaled[['open', 'high', 'low', 'close', 'volume']]
-    y_dataset = dataset_scaled[['interval_evolution']].values
+    y_dataset = dataset_scaled[['close']].values
 
     # Create sliding window feature set
     X = []

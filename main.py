@@ -1,5 +1,5 @@
 from config import Config
-from data.data_utils import prepare_data, create_test_loader, prepare_training_validation_data
+from data.data_utils import prepare_data, create_test_loader, training_loaders
 from models.model import LSTMModel
 from models.train import run_training
 from models.evaluate import simulate_investment
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     config = Config()
 
     # Prepare data
-    df, dataset_scaled, sc = prepare_data(symbol=config.symbol, 
+    df, dataset_scaled, train_sc = prepare_data(symbol=config.symbol, 
                                           start_date=config.start_date, 
                                           end_date=config.end_date,
                                           timeframe=config.timeframe, 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
                                           is_training=True)
 
     # Prepare training and validation data
-    train_loader, valid_loader = prepare_training_validation_data(dataset_scaled, config.backcandles)
+    train_loader, valid_loader = training_loaders(dataset_scaled, config.backcandles)
 
     # Initialize model, optimizer, and scheduler
     lstm_model = LSTMModel(embedding_dim=5, 
@@ -60,16 +60,20 @@ if __name__ == "__main__":
     # Plot training metrics
     plot_training_metrics(history)
 
-    # Create test loader and simulate investment
-    test_loader, df_test, dataset_scaled_test = create_test_loader(
-        symbol = config.symbol, 
-        start_date = config.test_start_date, 
-        end_date = config.test_end_date,
-        timeframe = config.timeframe, 
-        backcandles= config.backcandles, 
-        sc = sc, 
-        is_filter=False, 
-        limit= 9 * 30 * 12
+     # Prepare test data
+    test_df, test_dataset_scaled, _ = prepare_data(symbol=config.symbol, 
+                                          start_date=config.test_start_date, 
+                                          end_date=config.test_end_date,
+                                          timeframe=config.timeframe, 
+                                          is_filter=False, 
+                                          limit= 1 * 305 * 12, 
+                                          is_training=False,
+                                          sc = train_sc)
+
+    # Create test loader
+    test_loader = create_test_loader(
+        dataset_scaled=test_dataset_scaled,
+        backcandles=config.backcandles,
     )
 
     # Run simulation
@@ -77,7 +81,7 @@ if __name__ == "__main__":
             dataloader = test_loader, 
             capital = config.initial_capital, 
             shares_owned = config.shares_owned, 
-            scaler = sc,
+            scaler = train_sc,
             buy_threshold = 0.01,
             sell_threshold = -0.01
             )
