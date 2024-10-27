@@ -26,22 +26,26 @@ if __name__ == "__main__":
     config = Config()
 
     # Prepare data
-    df, dataset_scaled, train_sc = prepare_data(symbol=config.symbol, 
+    df, dataset_scaled, train_sc, train_cols = prepare_data(symbol=config.symbol, 
                                           start_date=config.start_date, 
                                           end_date=config.end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
                                           limit= 365 * 12, 
-                                          is_training=True)
+                                          is_training=True,
+                                          backcandles=config.backcandles)
 
     # Prepare training and validation data
-    train_loader, valid_loader = training_loaders(dataset_scaled, config.backcandles)
+    train_loader, valid_loader = training_loaders(
+        dataset_scaled=dataset_scaled, 
+        backcandles=config.backcandles,
+        train_cols=train_cols)
 
     # Initialize model, optimizer, and scheduler
-    lstm_model = LSTMModel(embedding_dim=5, 
-                           hidden_dim = 64,
-                           num_layers=2, 
-                           dropout_prob=0.2)
+    lstm_model = LSTMModel(embedding_dim=len(train_cols), 
+                           hidden_dim = 256,
+                           num_layers = 3, 
+                           dropout_prob = 0.3)
     
     optimizer = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
@@ -61,19 +65,21 @@ if __name__ == "__main__":
     plot_training_metrics(history)
 
      # Prepare test data
-    test_df, test_dataset_scaled, _ = prepare_data(symbol=config.symbol, 
+    test_df, test_dataset_scaled, _, _ = prepare_data(symbol=config.symbol, 
                                           start_date=config.test_start_date, 
                                           end_date=config.test_end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
                                           limit= 4 * 365 * 12, 
                                           is_training=False,
-                                          sc = train_sc)
+                                          sc = train_sc,
+                                          backcandles=config.backcandles)
 
     # Create test loader
     test_loader = create_test_loader(
         dataset_scaled=test_dataset_scaled,
         backcandles=config.backcandles,
+        train_cols=train_cols
     )
 
     # Run simulation
@@ -86,4 +92,5 @@ if __name__ == "__main__":
             sell_threshold = -0.02,
             test_df = test_df,
             backcandles=config.backcandles,
+            train_cols=train_cols
             )

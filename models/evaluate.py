@@ -39,7 +39,7 @@ def plot_evolutions(timestamps, true_evolutions, predicted_evolutions):
     plt.grid(True)
     plt.savefig('logs/evolutions.png')
 
-def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles):
+def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles, train_cols):
     model.eval()
     true_evolutions = []
     predicted_evolutions = []
@@ -47,21 +47,23 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
     portfolio_values = []
     timestamps = []
     initial_capital = capital
-
+    print(test_df)
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
         # Correct the timestamp index by adding the backcandles delay
         timestamps.append(test_df.iloc[step + backcandles, 0])
-        current_price = features[:, -1, 3].numpy().flatten()[0] # Current closing price [fourth column of the last row]
+
+        current_price_index = train_cols.index('close')
+        current_price = features[:, -1, current_price_index].numpy().flatten()[0]
 
         # Predicted and true prices in normalized form
         predicted_evolution_norm = model(features).detach().numpy().flatten()
         true_evolution_norm = targets.numpy().flatten()
 
         # Create dummy arrays to inverse transform
-        dummy_pred = np.zeros((1, 6))
+        dummy_pred = np.zeros((1, len(train_cols) + 1))
         dummy_pred[:, 5] = predicted_evolution_norm
-        dummy_target = np.zeros((1, 6))
+        dummy_target = np.zeros((1, len(train_cols) + 1))
         dummy_target[:, 5] = true_evolution_norm
 
         predicted_evolution = scaler.inverse_transform(dummy_pred)[:, 5][0]

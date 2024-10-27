@@ -8,6 +8,7 @@ import alpaca_trade_api as tradeapi
 import alpaca_trade_api.rest as rest
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
+from data.features_engineering import features_engineering
 
 load_dotenv()
 API_KEY = os.getenv('ALPACA_API_KEY')
@@ -49,25 +50,27 @@ def filter_close(df):
     
     return filtered_df
 
-def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None):
+def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None, backcandles=60):
     df = get_historical_data(symbol, timeframe, start_date, end_date, limit)
     if is_filter :
             # Filter to keep only open market hours
             df = filter_close(df)
 
     df['close_change'] = df['close'].diff().fillna(0)
-    
+    df, train_cols = features_engineering(df, backcandles)
+    print(train_cols)
+
     # Scale data
     if is_training:
         sc = StandardScaler()
-        sc.fit(df[['open', 'high', 'low', 'close', 'volume', 'close_change']])
-    dataset_scaled = sc.transform(df[['open', 'high', 'low', 'close', 'volume', 'close_change']])
-    dataset_scaled = pd.DataFrame(dataset_scaled, columns=['open', 'high', 'low', 'close', 'volume', 'close_change'], index= df['time'])
+        sc.fit(df[train_cols + ['close_change']])
+    dataset_scaled = sc.transform(df[train_cols + ['close_change']])
+    dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_change'], index= df['time'])
 
-    return df, dataset_scaled, sc
+    return df, dataset_scaled, sc, train_cols
 
-def training_loaders(dataset_scaled, backcandles, train_ratio=0.94):
-    X_dataset = dataset_scaled[['open', 'high', 'low', 'close', 'volume']]
+def training_loaders(dataset_scaled, backcandles, train_cols, train_ratio=0.94):
+    X_dataset = dataset_scaled[train_cols]
     y_dataset = dataset_scaled[['close_change']].values
 
     # Create sliding window feature set
@@ -91,8 +94,8 @@ def training_loaders(dataset_scaled, backcandles, train_ratio=0.94):
 
     return train_loader, valid_loader
 
-def create_test_loader(dataset_scaled, backcandles):
-    X_dataset = dataset_scaled[['open', 'high', 'low', 'close', 'volume']]
+def create_test_loader(dataset_scaled, backcandles, train_cols):
+    X_dataset = dataset_scaled[train_cols]
     y_dataset = dataset_scaled[['close_change']].values
 
     # Sliding window feature set
