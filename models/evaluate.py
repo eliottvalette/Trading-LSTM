@@ -47,7 +47,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
     portfolio_values = []
     timestamps = []
     initial_capital = capital
-    print(test_df)
+
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
         # Correct the timestamp index by adding the backcandles delay
@@ -62,12 +62,12 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
 
         # Create dummy arrays to inverse transform
         dummy_pred = np.zeros((1, len(train_cols) + 1))
-        dummy_pred[:, 5] = predicted_evolution_norm
+        dummy_pred[:, -1] = predicted_evolution_norm
         dummy_target = np.zeros((1, len(train_cols) + 1))
-        dummy_target[:, 5] = true_evolution_norm
+        dummy_target[:, -1] = true_evolution_norm
 
-        predicted_evolution = scaler.inverse_transform(dummy_pred)[:, 5][0]
-        true_evolution = scaler.inverse_transform(dummy_target)[:, 5][0]
+        predicted_evolution = scaler.inverse_transform(dummy_pred)[:, -1][0]
+        true_evolution = scaler.inverse_transform(dummy_target)[:, -1][0]
 
 
         # Simulate investment based on model prediction

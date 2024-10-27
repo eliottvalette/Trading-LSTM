@@ -80,14 +80,12 @@ def training_loaders(dataset_scaled, backcandles, train_cols, train_ratio=0.94):
         X.append(np.array(window))
     X, y = np.array(X).transpose(0, 2, 1), np.array(y_dataset[1 + backcandles:, -1]).reshape(-1, 1)
 
-    # Split data into training and validation datasets using train_test_split
+    # Split data into training and validation datasets
     train_size = int(len(X) * train_ratio)
-    val_size = len(X) - train_size
-    train_X, val_X, train_y, val_y = train_test_split(X, y, test_size=val_size, random_state=42)
 
     # Convert data to PyTorch DataLoader objects
-    train_dataset = TensorDataset(torch.tensor(train_X, dtype=torch.float32), torch.tensor(train_y, dtype=torch.float32))
-    valid_dataset = TensorDataset(torch.tensor(val_X, dtype=torch.float32), torch.tensor(val_y, dtype=torch.float32))
+    train_dataset = TensorDataset(torch.tensor(X[:train_size], dtype=torch.float32), torch.tensor(y[:train_size], dtype=torch.float32))
+    valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
 
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=True)
