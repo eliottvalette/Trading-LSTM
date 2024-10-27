@@ -50,6 +50,18 @@ def filter_close(df):
     
     return filtered_df
 
+def label_data(y, buy_threshold, sell_threshold):
+    labels = []
+    for i in range(len(y)):
+        if y[i] >= buy_threshold:
+            labels.append([1,0,0])
+        elif y[i] <= sell_threshold:
+            labels.append([0,0,1])
+        else:
+            labels.append([0,1,0])
+    return labels
+
+
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None, backcandles=60):
     df = get_historical_data(symbol, timeframe, start_date, end_date, limit)
     if is_filter :
@@ -69,7 +81,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
 
     return df, dataset_scaled, sc, train_cols
 
-def training_loaders(dataset_scaled, backcandles, train_cols, train_ratio=0.94):
+def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, train_ratio=0.94):
     X_dataset = dataset_scaled[train_cols]
     y_dataset = dataset_scaled[['close_change']].values
 
@@ -78,7 +90,9 @@ def training_loaders(dataset_scaled, backcandles, train_cols, train_ratio=0.94):
     for i in range(backcandles, len(X_dataset) - 1):
         window = [X_dataset.iloc[i-backcandles:i, j].values for j in range(X_dataset.shape[1])]
         X.append(np.array(window))
-    X, y = np.array(X).transpose(0, 2, 1), np.array(y_dataset[1 + backcandles:, -1]).reshape(-1, 1)
+    X = np.array(X).transpose(0, 2, 1)
+    y = label_data(y_dataset[1 + backcandles:, -1], buy_threshold, sell_threshold)
+    y = np.array(y)
 
     # Split data into training and validation datasets
     train_size = int(len(X) * train_ratio)
@@ -92,7 +106,7 @@ def training_loaders(dataset_scaled, backcandles, train_cols, train_ratio=0.94):
 
     return train_loader, valid_loader
 
-def create_test_loader(dataset_scaled, backcandles, train_cols):
+def create_test_loader(dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold):
     X_dataset = dataset_scaled[train_cols]
     y_dataset = dataset_scaled[['close_change']].values
 
@@ -101,6 +115,9 @@ def create_test_loader(dataset_scaled, backcandles, train_cols):
     for i in range(backcandles, len(X_dataset) - 1):
         window = [X_dataset.iloc[i-backcandles:i, j].values for j in range(X_dataset.shape[1])]
         X.append(np.array(window))
-    X, y = np.array(X).transpose(0, 2, 1), np.array(y_dataset[1 + backcandles:, -1]).reshape(-1, 1)
+    X = np.array(X).transpose(0, 2, 1)
+    y = label_data(y_dataset[1 + backcandles:, -1], buy_threshold, sell_threshold)
+    y = np.array(y)
+
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     return DataLoader(test_dataset, batch_size=1, shuffle=False)

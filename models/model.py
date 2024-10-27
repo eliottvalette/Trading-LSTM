@@ -12,10 +12,12 @@ class LSTMModel(nn.Module):
                             dropout=dropout_prob, 
                             batch_first=True)
         
-        self.hidden2tag = nn.Linear(hidden_dim, 1)
+        self.hidden2tag = nn.Linear(hidden_dim, 3)
         self.dropout = nn.Dropout(dropout_prob)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, features):
         lstm_out, _ = self.lstm(features)
         tag_space = self.hidden2tag(self.dropout(lstm_out[:, -1, :]))
-        return tag_space
+        output = self.softmax(tag_space)
+        return output

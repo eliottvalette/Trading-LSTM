@@ -1,4 +1,4 @@
-
+import pandas as pd
 def calculate_rsi(data, window=14):
         delta = data['close'].diff(1)
         gain = delta.where(delta > 0, 0)
@@ -12,12 +12,12 @@ def calculate_rsi(data, window=14):
         return rsi
 
 def stochastic_oscillator(data, window=14):
-        data['Lowest Low'] = data['low'].rolling(window=window).min()
-        data['Highest High'] = data['high'].rolling(window=window).max()
-        data['Stochastic'] = 100 * ((data['close'] - data['Lowest Low']) / (data['Highest High'] - data['Lowest Low']))
-        return data['Stochastic']
+        lowest_low = data['low'].rolling(window=window).min()
+        highest_high = data['high'].rolling(window=window).max()
+        stochastic = 100 * ((data['close'] - lowest_low) / (highest_high - lowest_low))
+        return stochastic
 
-def features_engineering(df, backcandles) :
+def features_engineering(df, backcandles):
     # 1
     df['SMA'] = df['close'].rolling(window=backcandles).mean().fillna(0)
 
@@ -42,11 +42,11 @@ def features_engineering(df, backcandles) :
     df['Stochastic'] = stochastic_oscillator(df)
 
     # 7
-    df['High-Low'] = df['high'] - df['low']
-    df['High-close'] = (df['high'] - df['close'].shift()).abs()
-    df['Low-close'] = (df['low'] - df['close'].shift()).abs()
-    true_range = df[['High-Low', 'High-close', 'Low-close']].max(axis=1)
-    df['ATR'] = true_range.rolling(window=14).mean()
+    high_low = df['high'] - df['low']
+    high_close = (df['high'] - df['close'].shift()).abs()
+    low_close = (df['low'] - df['close'].shift()).abs()
+    true_range = pd.DataFrame({'high_low': high_low, 'high_close': high_close, 'low_close': low_close})
+    df['ATR'] = true_range.max(axis=1).rolling(window=14).mean()
 
     # 8
     df['VWAP'] = (df['close'] * df['volume']).cumsum() / df['volume'].cumsum()
@@ -55,5 +55,4 @@ def features_engineering(df, backcandles) :
 
     train_cols = [col for col in df.columns if col not in ['time', 'close_change']]
     
-    print(df)
     return df, train_cols

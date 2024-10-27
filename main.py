@@ -31,7 +31,7 @@ if __name__ == "__main__":
                                           end_date=config.end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
-                                          limit= 365 * 12, 
+                                          limit= 365 * 24 * 4 + 199, 
                                           is_training=True,
                                           backcandles=config.backcandles)
 
@@ -39,13 +39,16 @@ if __name__ == "__main__":
     train_loader, valid_loader = training_loaders(
         dataset_scaled=dataset_scaled, 
         backcandles=config.backcandles,
-        train_cols=train_cols)
+        train_cols=train_cols,
+        buy_threshold=config.buy_threshold,
+        sell_threshold=config.sell_threshold,
+        )
 
     # Initialize model, optimizer, and scheduler
     lstm_model = LSTMModel(embedding_dim=len(train_cols), 
-                           hidden_dim = 256,
+                           hidden_dim = 64,
                            num_layers = 3, 
-                           dropout_prob = 0.3)
+                           dropout_prob = 0.4)
     
     optimizer = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
@@ -79,7 +82,9 @@ if __name__ == "__main__":
     test_loader = create_test_loader(
         dataset_scaled=test_dataset_scaled,
         backcandles=config.backcandles,
-        train_cols=train_cols
+        train_cols=train_cols,
+        buy_threshold=config.buy_threshold,
+        sell_threshold=config.sell_threshold, 
     )
 
     # Run simulation
@@ -88,8 +93,8 @@ if __name__ == "__main__":
             capital = config.initial_capital, 
             shares_owned = config.shares_owned, 
             scaler = train_sc,
-            buy_threshold = 0.02,
-            sell_threshold = -0.02,
+            buy_threshold = config.buy_threshold,
+            sell_threshold = config.sell_threshold,
             test_df = test_df,
             backcandles=config.backcandles,
             train_cols=train_cols
