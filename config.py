@@ -12,7 +12,7 @@ class Config:
         self.end_date = (self.start_date_dt + timedelta(days= 4 * 365)).strftime('%Y-%m-%d')
         self.test_start_date = '2024-01-01'
         self.test_end_date = '2024-09-01'
-        self.initial_capital = 1000
+        self.initial_capital = 10000
         self.shares_owned = 0
         self.num_epochs = 20
         self.buy_threshold = 0.02

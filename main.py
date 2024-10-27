@@ -46,9 +46,9 @@ if __name__ == "__main__":
 
     # Initialize model, optimizer, and scheduler
     lstm_model = LSTMModel(embedding_dim=len(train_cols), 
-                           hidden_dim = 64,
-                           num_layers = 3, 
-                           dropout_prob = 0.4)
+                           hidden_dim = 128,
+                           num_layers = 2, 
+                           dropout_prob = 0.2)
     
     optimizer = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)

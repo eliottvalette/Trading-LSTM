@@ -102,7 +102,7 @@ def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sel
     valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
 
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False)
 
     return train_loader, valid_loader
 

@@ -57,7 +57,7 @@ def plot_confusion_matrix(predicted_orders, best_orders):
     plt.title('Confusion Matrix')
     plt.savefig('logs/confusion_matrix.png')
 
-def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles, train_cols):
+def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles, train_cols, trade_allocation = 0.1):
     model.eval()
 
     predicted_orders = []
@@ -88,21 +88,27 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
         true_best_order = targets.numpy().flatten().argmax()
 
         # Simulate investment based on model prediction
-        if order_prediction == 0 and capital >= current_price:
-            # Buy all the shares you can
-            nb_share_affordable = int(capital // current_price)
-            shares_owned += nb_share_affordable
-            capital -= nb_share_affordable * current_price * 1.01  # Add 1% commission
-            buy_sell_annotations.append(['Buy', current_price, timestamps[-1]])
-            print(f"Bought {nb_share_affordable} share at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On :{timestamps[-1]}")
+        if order_prediction == 0 and capital >= current_price :
+            # Calculate position size based on trade allocation
+            investment_amount = capital * trade_allocation
+            nb_share_affordable = int(investment_amount // current_price)
+            if nb_share_affordable > 0:
+                shares_owned += nb_share_affordable
+                total_cost = nb_share_affordable * current_price * 1.01
+                capital -= total_cost
+                position_entry_price = current_price
+                buy_sell_annotations.append(['Buy', current_price, timestamps[-1]])
+                print(f"Bought {nb_share_affordable} shares at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On: {timestamps[-1]}")
 
         elif order_prediction == 2 and shares_owned > 0:
-            # Sell all the shares you have
-            capital += current_price * shares_owned * 0.99  # Subtract 1% commission
-            shares_owned_temp = shares_owned
+            # Sell all shares
+            total_revenue = shares_owned * current_price * 0.99
+            capital += total_revenue
+            shares_sold = shares_owned
             shares_owned = 0
+            position_entry_price = None
             buy_sell_annotations.append(['Sell', current_price, timestamps[-1]])
-            print(f"Sold {shares_owned_temp} share at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On :{timestamps[-1]}")
+            print(f"Sold {shares_sold} shares at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On: {timestamps[-1]}")
 
         # Calculate portfolio value after each decision
         portfolio_value = capital + shares_owned * current_price
