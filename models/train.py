@@ -105,13 +105,13 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
         
         # Save the model if it's getting better results
         if best_loss >= val_epoch_loss:
-            print(f"Best F1 Score Improved ({best_loss} ---> {val_epoch_loss})")
+            print(f"Best Loss Improved ({best_loss} ---> {val_epoch_loss})")
 
             best_loss = val_epoch_loss
             best_model_wts = copy.deepcopy(model.state_dict())
 
             # Save the model based on F1 Score improvement
-            PATH = f"saved_weights/LSTM_F1_{val_epoch_loss:.4f}_epoch{epoch}.bin"
+            PATH = f"saved_weights/LSTM_Loss_{val_epoch_loss:.4f}_epoch{epoch}.bin"
             torch.save(model.state_dict(), PATH)
 
             print("Model Saved")

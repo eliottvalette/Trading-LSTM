@@ -52,10 +52,10 @@ def filter_close(df):
 
 def label_data(y, buy_threshold, sell_threshold):
     labels = []
-    for i in range(len(y)):
-        if y[i] >= buy_threshold:
+    for change in y:
+        if change >= buy_threshold:
             labels.append([1,0,0])
-        elif y[i] <= sell_threshold:
+        elif change <= sell_threshold:
             labels.append([0,0,1])
         else:
             labels.append([0,1,0])

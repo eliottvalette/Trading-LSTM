@@ -31,7 +31,7 @@ if __name__ == "__main__":
                                           end_date=config.end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
-                                          limit= 365 * 24 * 4 + 199, 
+                                          limit= 365 * 24 * 4, 
                                           is_training=True,
                                           backcandles=config.backcandles)
 
