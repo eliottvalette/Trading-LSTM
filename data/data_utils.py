@@ -62,11 +62,73 @@ def label_data(y, buy_threshold, sell_threshold):
     return labels
 
 
+def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=True, sc=None, backcandles=60):
+    final_df, final_dataset_scaled = None, None
+    # Convert timeframe
+    timeframe = str(timeframe)
+
+    # First pass: find and fit the scaler on the final symbol
+    for file in os.listdir('data/preloads'):
+        if timeframe in file and final_symbol in file:
+            df = pd.read_csv('data/preloads/' + file)
+            df['time'] = pd.to_datetime(df['time'], errors='coerce')
+            if is_filter:
+                df = filter_close(df)
+
+            # Categorize hours and calculate close change
+            df['hour'] = df['time'].dt.hour
+            df['close_change'] = df['close'].diff().fillna(0)
+
+            # Perform feature engineering
+            df, train_cols = features_engineering(df, backcandles)
+            print(train_cols)
+
+            # Fit scaler on final symbol if training
+            if is_training:
+                sc = StandardScaler()
+                sc.fit(df[train_cols + ['close_change']])
+
+            # Scale data for final symbol
+            dataset_scaled = sc.transform(df[train_cols + ['close_change']])
+            dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_change'], index=df['time'])
+            
+            # Set as initial final dataset
+            final_df, final_dataset_scaled = df, dataset_scaled
+            break
+
+    # Second pass: apply the scaler to other files
+    for file in os.listdir('data/preloads'):
+        if timeframe in file and final_symbol not in file:
+            df = pd.read_csv('data/preloads/' + file)
+            df['time'] = pd.to_datetime(df['time'], errors='coerce')
+            if is_filter:
+                df = filter_close(df)
+
+            # Categorize hours and calculate close change
+            df['hour'] = df['time'].dt.hour
+            df['close_change'] = df['close'].diff().fillna(0)
+
+            # Perform feature engineering
+            df, _ = features_engineering(df, backcandles)
+
+            # Scale data using the previously fitted scaler
+            dataset_scaled = sc.transform(df[train_cols + ['close_change']])
+            dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_change'], index=df['time'])
+
+            # Concatenate with final dataset
+            final_df = pd.concat([final_df, df])
+            final_dataset_scaled = pd.concat([final_dataset_scaled, dataset_scaled])
+
+    return final_df, final_dataset_scaled, sc, train_cols
+
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None, backcandles=60):
     df = get_historical_data(symbol, timeframe, start_date, end_date, limit)
     if is_filter :
-            # Filter to keep only open market hours
-            df = filter_close(df)
+        # Filter to keep only open market hours
+        df = filter_close(df)
+
+    # Categorize Hours
+    df['hour'] = df['time'].dt.hour
 
     df['close_change'] = df['close'].diff().fillna(0)
     df, train_cols = features_engineering(df, backcandles)
@@ -81,7 +143,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
 
     return df, dataset_scaled, sc, train_cols
 
-def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, train_ratio=0.94):
+def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, valid_size=2160):
     X_dataset = dataset_scaled[train_cols]
     y_dataset = dataset_scaled[['close_change']].values
 
@@ -95,14 +157,14 @@ def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sel
     y = np.array(y)
 
     # Split data into training and validation datasets
-    train_size = int(len(X) * train_ratio)
+    train_size = int(len(X) - valid_size)
 
     # Convert data to PyTorch DataLoader objects
     train_dataset = TensorDataset(torch.tensor(X[:train_size], dtype=torch.float32), torch.tensor(y[:train_size], dtype=torch.float32))
     valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
 
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4)
+    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False, num_workers=4)
 
     return train_loader, valid_loader
 
@@ -120,4 +182,4 @@ def create_test_loader(dataset_scaled, backcandles, train_cols, buy_threshold, s
     y = np.array(y)
 
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
-    return DataLoader(test_dataset, batch_size=1, shuffle=False)
+    return DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)

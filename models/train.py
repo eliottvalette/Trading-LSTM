@@ -5,13 +5,16 @@ from collections import defaultdict
 import torch
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
-def train_one_epoch(model, optimizer, criterion, dataloader, epoch):
+def train_one_epoch(model, optimizer, criterion, dataloader, epoch, device):
     model.train()
     running_loss = 0.0
     dataset_size = 0
 
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
+
+        features = features.to(device)
+        targets = targets.to(device)
 
         batch_size = features.size(0)
         
@@ -31,7 +34,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, epoch):
         bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)
     return epoch_loss
 
-def valid_one_epoch(model, criterion, dataloader, epoch):    
+def valid_one_epoch(model, criterion, dataloader, epoch, device):    
     model.eval()
     dataset_size = 0
     running_loss = 0.0
@@ -42,6 +45,9 @@ def valid_one_epoch(model, criterion, dataloader, epoch):
     
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
+
+        features = features.to(device)
+        targets = targets.to(device)
 
         batch_size = features.size(0)
 
@@ -69,7 +75,10 @@ def valid_one_epoch(model, criterion, dataloader, epoch):
 
     return epoch_loss, accuracy, f1
 
-def run_training(model, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs):
+def run_training(model, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
+    # Confirm that it is running on GPU
+    if torch.cuda.is_available():
+        print("[INFO] Using GPU: {}\n".format(torch.cuda.get_device_name()))
     
     start = time.time()
     
@@ -89,12 +98,14 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
                                            optimizer = optimizer, 
                                            criterion = criterion, 
                                            dataloader = train_loader,
-                                           epoch = epoch)
+                                           epoch = epoch,
+                                           device = device)
         # Valid for one epoch
         val_epoch_loss, val_accuracy, val_f1 = valid_one_epoch(model = model, 
                                          criterion = criterion, 
                                          dataloader = valid_loader,
-                                         epoch = epoch)
+                                         epoch = epoch,
+                                         device = device)
         
         # Save the metrics in the history dictionary
         history['Train Loss'].append(train_epoch_loss)

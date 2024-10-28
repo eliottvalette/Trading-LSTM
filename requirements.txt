@@ -6,3 +6,5 @@ python-dotenv
 scikit-learn
 torch
 torchvision
+tqdm
+seaborn

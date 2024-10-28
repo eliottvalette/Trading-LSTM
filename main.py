@@ -1,5 +1,5 @@
 from config import Config
-from data.data_utils import prepare_data, create_test_loader, training_loaders
+from data.data_utils import prepare_data_from_preloads, prepare_data, create_test_loader, training_loaders
 from models.model import LSTMModel
 from models.train import run_training
 from models.evaluate import simulate_investment
@@ -22,18 +22,31 @@ def criterion(outputs, targets):
     return loss
 
 if __name__ == "__main__":
+    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+    print("Using device: ", device)
+
     # Set up constants and configurations
     config = Config()
 
     # Prepare data
-    df, dataset_scaled, train_sc, train_cols = prepare_data(symbol=config.symbol, 
-                                          start_date=config.start_date, 
-                                          end_date=config.end_date,
-                                          timeframe=config.timeframe, 
-                                          is_filter=False, 
-                                          limit= 365 * 24 * 4, 
-                                          is_training=True,
-                                          backcandles=config.backcandles)
+    if config.use_preloads :
+        df, dataset_scaled, train_sc, train_cols = prepare_data_from_preloads(
+            final_symbol=config.symbol,
+            timeframe=config.timeframe, 
+            is_filter=False, 
+            is_training=True,
+            backcandles=config.backcandles
+        )
+    else :
+        df, dataset_scaled, train_sc, train_cols = prepare_data(
+            symbol=config.symbol, 
+            start_date=config.start_date, 
+            end_date=config.end_date,
+            timeframe=config.timeframe, 
+            is_filter=False, 
+            limit= 30_000, 
+            is_training=True,
+            backcandles=config.backcandles)
 
     # Prepare training and validation data
     train_loader, valid_loader = training_loaders(
@@ -49,6 +62,7 @@ if __name__ == "__main__":
                            hidden_dim = 128,
                            num_layers = 2, 
                            dropout_prob = 0.2)
+    lstm_model = lstm_model.to(device)
     
     optimizer = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
@@ -62,6 +76,7 @@ if __name__ == "__main__":
         scheduler=scheduler,
         criterion=criterion,
         num_epochs=config.num_epochs,
+        device=device
     )
 
     # Plot training metrics
@@ -73,7 +88,7 @@ if __name__ == "__main__":
                                           end_date=config.test_end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
-                                          limit= 4 * 365 * 12, 
+                                          limit= 20_000, 
                                           is_training=False,
                                           sc = train_sc,
                                           backcandles=config.backcandles)
@@ -97,5 +112,6 @@ if __name__ == "__main__":
             sell_threshold = config.sell_threshold,
             test_df = test_df,
             backcandles=config.backcandles,
-            train_cols=train_cols
+            train_cols=train_cols,
+            device = device
             )
