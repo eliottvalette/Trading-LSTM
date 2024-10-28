@@ -19,7 +19,7 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 rd.seed(seed)
 
-symbol = 'GOOGL'
+symbol = 'MSFT'
 start_date = '2020-01-01'
 end_date = '2024-01-01'
 timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)

@@ -56,7 +56,7 @@ def plot_confusion_matrix(predicted_orders, best_orders):
     plt.xlabel('Predicted Orders')
     plt.ylabel('Actual Orders')
     plt.title('Confusion Matrix')
-    plt.savefig('logs/confusion_matrix.png')
+    plt.savefig('logs/confusion_matrix_evaluate.png')
 
 def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles, train_cols, device, trade_allocation = 0.1):
     model.eval()
@@ -90,6 +90,8 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
 
         # Predicted and true prices in normalized form
         order_prediction_weighted = model(features).cpu().detach().numpy().flatten()
+        if step < 10 :
+            print('order_prediction_weighted : ',order_prediction_weighted)
         order_prediction = order_prediction_weighted.argmax()
         true_best_order = targets.cpu().numpy().flatten().argmax()
 

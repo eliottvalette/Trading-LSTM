@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 from dotenv import load_dotenv
 import alpaca_trade_api as tradeapi
 import alpaca_trade_api.rest as rest
@@ -54,11 +54,11 @@ def label_data(y, buy_threshold, sell_threshold):
     labels = []
     for change in y:
         if change >= buy_threshold:
-            labels.append([1,0,0])
+            labels.append(0)
         elif change <= sell_threshold:
-            labels.append([0,0,1])
+            labels.append(1)
         else:
-            labels.append([0,1,0])
+            labels.append(2)
     return labels
 
 
@@ -77,24 +77,15 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Categorize hours and calculate close change
             df['hour'] = df['time'].dt.hour
-            df['close_change'] = df['close'].diff().fillna(0)
+            df['close_pct_change'] = df['close'].diff().fillna(0)
 
             # Perform feature engineering
             df, train_cols = features_engineering(df, backcandles)
             print(train_cols)
 
-            # Fit scaler on final symbol if training
-            if is_training:
-                sc = StandardScaler()
-                sc.fit(df[train_cols + ['close_change']])
+            final_df = df
 
-            # Scale data for final symbol
-            dataset_scaled = sc.transform(df[train_cols + ['close_change']])
-            dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_change'], index=df['time'])
             
-            # Set as initial final dataset
-            final_df, final_dataset_scaled = df, dataset_scaled
-            break
 
     # Second pass: apply the scaler to other files
     for file in os.listdir('data/preloads'):
@@ -106,19 +97,22 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Categorize hours and calculate close change
             df['hour'] = df['time'].dt.hour
-            df['close_change'] = df['close'].diff().fillna(0)
+            df['close_pct_change'] = df['close'].diff().fillna(0)
 
             # Perform feature engineering
             df, _ = features_engineering(df, backcandles)
 
-            # Scale data using the previously fitted scaler
-            dataset_scaled = sc.transform(df[train_cols + ['close_change']])
-            dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_change'], index=df['time'])
-
-            # Concatenate with final dataset
             final_df = pd.concat([final_df, df])
-            final_dataset_scaled = pd.concat([final_dataset_scaled, dataset_scaled])
+    
+    # Fit scaler on final symbol if training
+    if is_training:
+        sc = MinMaxScaler()
+        sc.fit(final_df[train_cols + ['close_pct_change']])
 
+    # Scale data for final symbol
+    final_dataset_scaled = sc.transform(final_df[train_cols + ['close_pct_change']])
+    final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
+            
     return final_df, final_dataset_scaled, sc, train_cols
 
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None, backcandles=60):
@@ -130,22 +124,22 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
     # Categorize Hours
     df['hour'] = df['time'].dt.hour
 
-    df['close_change'] = df['close'].diff().fillna(0)
+    df['close_pct_change'] = df['close'].pct_change().shift(-1).fillna(0)
     df, train_cols = features_engineering(df, backcandles)
     print(train_cols)
 
     # Scale data
     if is_training:
-        sc = StandardScaler()
-        sc.fit(df[train_cols + ['close_change']])
-    dataset_scaled = sc.transform(df[train_cols + ['close_change']])
-    dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_change'], index= df['time'])
+        sc = MinMaxScaler()
+        sc.fit(df[train_cols + ['close_pct_change']])
+    dataset_scaled = sc.transform(df[train_cols + ['close_pct_change']])
+    dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_pct_change'], index= df['time'])
 
     return df, dataset_scaled, sc, train_cols
 
-def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, valid_size=2160):
+def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, valid_size=216):
     X_dataset = dataset_scaled[train_cols]
-    y_dataset = dataset_scaled[['close_change']].values
+    y_dataset = dataframe['close_pct_change'].values
 
     # Create sliding window feature set
     X, y = [], []
@@ -153,12 +147,11 @@ def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sel
         window = [X_dataset.iloc[i-backcandles:i, j].values for j in range(X_dataset.shape[1])]
         X.append(np.array(window))
     X = np.array(X).transpose(0, 2, 1)
-    y = label_data(y_dataset[1 + backcandles:, -1], buy_threshold, sell_threshold)
+    
+    y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
     y = np.array(y)
 
-    # Display label counts
-    labels = y.argmax(axis=1)
-    print('Label counts:', np.bincount(labels))
+    print('Label counts:', np.bincount(y))
 
     # Split data into training and validation datasets
     train_size = int(len(X) - valid_size)
@@ -172,18 +165,21 @@ def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sel
 
     return train_loader, valid_loader
 
-def create_test_loader(dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold):
+def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold):
     X_dataset = dataset_scaled[train_cols]
-    y_dataset = dataset_scaled[['close_change']].values
+    y_dataset = dataframe['close_pct_change'].values
 
-    # Sliding window feature set
+    # Create sliding window feature set
     X, y = [], []
     for i in range(backcandles, len(X_dataset) - 1):
         window = [X_dataset.iloc[i-backcandles:i, j].values for j in range(X_dataset.shape[1])]
         X.append(np.array(window))
     X = np.array(X).transpose(0, 2, 1)
-    y = label_data(y_dataset[1 + backcandles:, -1], buy_threshold, sell_threshold)
+    
+    y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
     y = np.array(y)
+
+    print('Label counts:', np.bincount(y))
 
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     return DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)

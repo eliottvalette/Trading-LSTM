@@ -53,6 +53,6 @@ def features_engineering(df, backcandles):
 
     df.fillna(0, inplace=True)
 
-    train_cols = [col for col in df.columns if col not in ['time', 'close_change']]
+    train_cols = [col for col in df.columns if col not in ['time', 'close_pct_change']]
     
     return df, train_cols

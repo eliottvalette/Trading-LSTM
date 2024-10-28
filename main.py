@@ -18,7 +18,7 @@ np.random.seed(seed)
 rd.seed(seed)
 
 def criterion(outputs, targets):
-    loss = nn.MSELoss()(outputs, targets)
+    loss = nn.CrossEntropyLoss()(outputs, targets)
     return loss
 
 if __name__ == "__main__":
@@ -50,6 +50,7 @@ if __name__ == "__main__":
 
     # Prepare training and validation data
     train_loader, valid_loader = training_loaders(
+        dataframe = df,
         dataset_scaled=dataset_scaled, 
         backcandles=config.backcandles,
         train_cols=train_cols,
@@ -95,6 +96,7 @@ if __name__ == "__main__":
 
     # Create test loader
     test_loader = create_test_loader(
+        dataframe = test_df,
         dataset_scaled=test_dataset_scaled,
         backcandles=config.backcandles,
         train_cols=train_cols,
