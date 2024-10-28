@@ -56,9 +56,9 @@ def label_data(y, buy_threshold, sell_threshold):
         if change >= buy_threshold:
             labels.append(0)
         elif change <= sell_threshold:
-            labels.append(1)
-        else:
             labels.append(2)
+        else:
+            labels.append(1)
     return labels
 
 
@@ -137,7 +137,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
 
     return df, dataset_scaled, sc, train_cols
 
-def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, valid_size=216):
+def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, valid_size=2160):
     X_dataset = dataset_scaled[train_cols]
     y_dataset = dataframe['close_pct_change'].values
 
@@ -151,6 +151,7 @@ def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_thr
     y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
     y = np.array(y)
 
+    print('close_pct_change :', dataframe['close_pct_change'].describe())
     print('Label counts:', np.bincount(y))
 
     # Split data into training and validation datasets
@@ -179,6 +180,7 @@ def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_t
     y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
     y = np.array(y)
 
+    print('close_pct_change :', dataframe['close_pct_change'].describe())
     print('Label counts:', np.bincount(y))
 
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))

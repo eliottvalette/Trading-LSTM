@@ -50,7 +50,7 @@ def plot_actual_stock_price(timestamps, current_prices):
 
 def plot_confusion_matrix(predicted_orders, best_orders):
     """Plot confusion matrix comparing predicted and actual orders."""
-    cm = confusion_matrix(predicted_orders, best_orders)
+    cm = confusion_matrix(best_orders, predicted_orders)
     plt.figure(figsize=(7, 7))
     sns.heatmap(cm, annot=True, fmt='g', cmap='Blues')
     plt.xlabel('Predicted Orders')
@@ -58,7 +58,7 @@ def plot_confusion_matrix(predicted_orders, best_orders):
     plt.title('Confusion Matrix')
     plt.savefig('logs/confusion_matrix_evaluate.png')
 
-def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_threshold, sell_threshold, test_df, backcandles, train_cols, device, trade_allocation = 0.1):
+def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_df, backcandles, train_cols, device, trade_allocation = 0.1):
     model.eval()
 
     predicted_orders = []
@@ -90,10 +90,15 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, buy_th
 
         # Predicted and true prices in normalized form
         order_prediction_weighted = model(features).cpu().detach().numpy().flatten()
+        
         if step < 10 :
             print('order_prediction_weighted : ',order_prediction_weighted)
+
         order_prediction = order_prediction_weighted.argmax()
-        true_best_order = targets.cpu().numpy().flatten().argmax()
+        true_best_order = targets.cpu().numpy().flatten()
+
+        print('targets : ',targets)
+        print('true_best_order : ',true_best_order)
 
         # Simulate investment based on model prediction
         if order_prediction == 0 and capital >= current_price :

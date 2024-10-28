@@ -110,8 +110,6 @@ if __name__ == "__main__":
             capital = config.initial_capital, 
             shares_owned = config.shares_owned, 
             scaler = train_sc,
-            buy_threshold = config.buy_threshold,
-            sell_threshold = config.sell_threshold,
             test_df = test_df,
             backcandles=config.backcandles,
             train_cols=train_cols,

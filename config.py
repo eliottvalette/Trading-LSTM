@@ -14,6 +14,6 @@ class Config:
         self.initial_capital = 10_000
         self.shares_owned = 0
         self.num_epochs = 20
-        self.buy_threshold = 0.002
-        self.sell_threshold = -0.002
+        self.buy_threshold = 0.0002
+        self.sell_threshold = -0.0002
         self.use_preloads = True

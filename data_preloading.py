@@ -19,9 +19,9 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 rd.seed(seed)
 
-symbol = 'MSFT'
-start_date = '2020-01-01'
-end_date = '2024-01-01'
+symbol = 'AAPL'
+start_date = '2024-01-01'
+end_date = '2024-10-01'
 timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)
 is_filter = False
 limit = 4*364*24
