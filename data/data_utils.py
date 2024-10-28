@@ -156,6 +156,10 @@ def training_loaders(dataset_scaled, backcandles, train_cols, buy_threshold, sel
     y = label_data(y_dataset[1 + backcandles:, -1], buy_threshold, sell_threshold)
     y = np.array(y)
 
+    # Display label counts
+    labels = y.argmax(axis=1)
+    print('Label counts:', np.bincount(labels))
+
     # Split data into training and validation datasets
     train_size = int(len(X) - valid_size)
 

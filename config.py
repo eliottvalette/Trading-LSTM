@@ -8,9 +8,9 @@ class Config:
         self.backcandles = 120
         self.timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)
         self.start_date = '2020-01-01'
-        self.end_date = '2024-04-01'
+        self.end_date = '2024-01-01'
         self.test_start_date = self.end_date
-        self.test_end_date = '2024-09-01'
+        self.test_end_date = '2024-10-01'
         self.initial_capital = 10_000
         self.shares_owned = 0
         self.num_epochs = 20
