@@ -58,7 +58,7 @@ def plot_confusion_matrix(predicted_orders, best_orders):
     plt.title('Confusion Matrix')
     plt.savefig('logs/confusion_matrix_evaluate.png')
 
-def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_df, backcandles, train_cols, device, trade_allocation = 0.1):
+def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_df, backcandles, train_cols, decision_threshold, device, trade_allocation = 0.1):
     model.eval()
 
     predicted_orders = []
@@ -89,19 +89,16 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
         current_price = scaler.inverse_transform(dummy_pred)[:, current_price_index][0]
 
         # Predicted and true prices in normalized form
-        order_prediction_weighted = model(features).cpu().detach().numpy().flatten()
-        
-        if step < 10 :
-            print('order_prediction_weighted : ',order_prediction_weighted)
+        order_prediction = model(features).cpu().detach().numpy().flatten()
+        BHS_pred = 1 if order_prediction > decision_threshold else -1 
 
-        order_prediction = order_prediction_weighted.argmax()
+        if step < 10 :
+            print('order_prediction : ',order_prediction)
+
         true_best_order = targets.cpu().numpy().flatten()
 
-        print('targets : ',targets)
-        print('true_best_order : ',true_best_order)
-
         # Simulate investment based on model prediction
-        if order_prediction == 0 and capital >= current_price :
+        if BHS_pred == 1 and capital >= current_price :
             # Calculate position size based on trade allocation
             investment_amount = capital * trade_allocation
             nb_share_affordable = int(investment_amount // current_price)
@@ -113,7 +110,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
                 buy_sell_annotations.append(['Buy', portfolio_value_temp, timestamps[-1]])
                 # print(f"Bought {nb_share_affordable} shares at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On: {timestamps[-1]}")
 
-        elif order_prediction == 2 and shares_owned > 0:
+        elif BHS_pred == -1 and shares_owned > 0:
             # Sell all shares
             total_revenue = shares_owned * current_price * (1 - commission)
             capital += total_revenue
@@ -129,7 +126,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
         current_prices.append(current_price)
 
         # Store predicted and true orders
-        predicted_orders.append(order_prediction)
+        predicted_orders.append(BHS_pred)
         best_orders.append(true_best_order)
 
     # Convert timestamps to a datetime format

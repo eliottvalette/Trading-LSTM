@@ -18,7 +18,7 @@ np.random.seed(seed)
 rd.seed(seed)
 
 def criterion(outputs, targets):
-    loss = nn.CrossEntropyLoss()(outputs, targets)
+    loss = nn.MSELoss()(outputs, targets)
     return loss
 
 if __name__ == "__main__":
@@ -71,6 +71,7 @@ if __name__ == "__main__":
     # Train the model
     trained_model, history = run_training(
         model=lstm_model,
+        decision_threshold=config.decision_threshold,
         train_loader=train_loader,
         valid_loader=valid_loader,
         optimizer=optimizer,
@@ -113,5 +114,6 @@ if __name__ == "__main__":
             test_df = test_df,
             backcandles=config.backcandles,
             train_cols=train_cols,
+            decision_threshold=config.decision_threshold,
             device = device
             )

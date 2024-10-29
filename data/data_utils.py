@@ -53,12 +53,7 @@ def filter_close(df):
 def label_data(y, buy_threshold, sell_threshold):
     labels = []
     for change in y:
-        if change >= buy_threshold:
-            labels.append(0)
-        elif change <= sell_threshold:
-            labels.append(2)
-        else:
-            labels.append(1)
+        labels.append( 1 if change > 0 else -1 )
     return labels
 
 
@@ -83,9 +78,12 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
             df, train_cols = features_engineering(df, backcandles)
             print(train_cols)
 
-            final_df = df
+            sc = MinMaxScaler()
+            sc.fit(df[train_cols + ['close_pct_change']])
 
-            
+            final_df = df
+            final_dataset_scaled = sc.transform(final_df[train_cols + ['close_pct_change']])
+            final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=df['time'])
 
     # Second pass: apply the scaler to other files
     for file in os.listdir('data/preloads'):
@@ -101,18 +99,14 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Perform feature engineering
             df, _ = features_engineering(df, backcandles)
+            new_scaled_df = sc.transform(df[train_cols + ['close_pct_change']])
 
             final_df = pd.concat([final_df, df])
-    
-    # Fit scaler on final symbol if training
-    if is_training:
-        sc = MinMaxScaler()
-        sc.fit(final_df[train_cols + ['close_pct_change']])
+            new_scaled_df = pd.DataFrame(new_scaled_df, columns=train_cols + ['close_pct_change'], index=df['time'])
+            final_dataset_scaled = pd.concat([final_dataset_scaled, new_scaled_df])
 
-    # Scale data for final symbol
-    final_dataset_scaled = sc.transform(final_df[train_cols + ['close_pct_change']])
+
     final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
-            
     return final_df, final_dataset_scaled, sc, train_cols
 
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None, backcandles=60):
@@ -132,6 +126,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
     if is_training:
         sc = MinMaxScaler()
         sc.fit(df[train_cols + ['close_pct_change']])
+
     dataset_scaled = sc.transform(df[train_cols + ['close_pct_change']])
     dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_pct_change'], index= df['time'])
 
@@ -152,7 +147,11 @@ def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_thr
     y = np.array(y)
 
     print('close_pct_change :', dataframe['close_pct_change'].describe())
-    print('Label counts:', np.bincount(y))
+    
+    # Display the counts of each label
+    shifted_y = y + 1  # -1 becomes 0, 1 becomes 2
+    label_counts = np.bincount(shifted_y)
+    print('Label counts for -1, 1:', dict(zip([-1, 1], label_counts)))  
 
     # Split data into training and validation datasets
     train_size = int(len(X) - valid_size)
@@ -181,7 +180,11 @@ def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_t
     y = np.array(y)
 
     print('close_pct_change :', dataframe['close_pct_change'].describe())
-    print('Label counts:', np.bincount(y))
+
+    # Display the counts of each label
+    shifted_y = y + 1  # -1 becomes 0, 1 becomes 2
+    label_counts = np.bincount(shifted_y)
+    print('Label counts for -1, 1:', dict(zip([-1, 1], label_counts)))  
 
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     return DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)

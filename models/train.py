@@ -3,21 +3,25 @@ import time
 from tqdm import tqdm
 from collections import defaultdict
 import torch
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
 
 def plot_confusion_matrix(y_true, y_pred, title, file_title):
-    cm = confusion_matrix(y_true, y_pred)
+    cm = confusion_matrix(y_true, y_pred, labels=[-1, 1])
     plt.figure(figsize=(8, 6))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False)
+    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False,
+                xticklabels=['Sell', 'Buy'],
+                yticklabels=['Sell', 'Buy'])
     plt.xlabel("Predicted Labels")
     plt.ylabel("True Labels")
     plt.title(title)
     plt.savefig(f'logs/confusion_matrix_{file_title}.png')
 
-def train_one_epoch(model, optimizer, criterion, dataloader, epoch, device):
+
+def train_one_epoch(model, decision_threshold, optimizer, criterion, dataloader, epoch, device):
     model.train()
     running_loss = 0.0
     dataset_size = 0
@@ -35,7 +39,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, epoch, device):
         
         optimizer.zero_grad()
         
-        predicted_evolution = model(features)
+        predicted_evolution = model(features).squeeze(-1)
         
         loss = criterion(predicted_evolution, targets)
         loss.backward()
@@ -47,7 +51,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, epoch, device):
         epoch_loss = running_loss / dataset_size
 
         train_targets.extend(targets.cpu().numpy())
-        train_predictions.extend(predicted_evolution.argmax(dim=1).cpu().numpy())
+        train_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > 0, 1, -1))
         
         bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)
 
@@ -56,7 +60,7 @@ def train_one_epoch(model, optimizer, criterion, dataloader, epoch, device):
 
     return epoch_loss
 
-def valid_one_epoch(model, criterion, dataloader, epoch, device):    
+def valid_one_epoch(model, decision_threshold, criterion, dataloader, epoch, device):    
     model.eval()
     dataset_size = 0
     running_loss = 0.0
@@ -74,7 +78,7 @@ def valid_one_epoch(model, criterion, dataloader, epoch, device):
         batch_size = features.size(0)
 
         with torch.no_grad():
-            predicted_evolution = model(features)      
+            predicted_evolution = model(features).squeeze(-1)     
 
         # Compute the loss
         loss = criterion(predicted_evolution, targets)
@@ -82,9 +86,8 @@ def valid_one_epoch(model, criterion, dataloader, epoch, device):
         running_loss += loss.item() * batch_size
         dataset_size += batch_size
 
-
-        valid_targets.extend(targets.cpu().numpy())        
-        valid_predictions.extend(predicted_evolution.argmax(dim=1).cpu().numpy())
+        valid_targets.extend(targets.cpu().numpy())
+        valid_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > 0, 1, -1))
 
         epoch_loss = running_loss / dataset_size
 
@@ -95,13 +98,12 @@ def valid_one_epoch(model, criterion, dataloader, epoch, device):
 
     # Calculate metrics
     accuracy = accuracy_score(valid_targets, valid_predictions)
-    f1 = f1_score(valid_targets, valid_predictions, average='macro')  
 
-    print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1: {f1:.4f}")
+    print(f"Validation Metrics - Accuracy: {accuracy:.4f}")
 
-    return epoch_loss, accuracy, f1
+    return epoch_loss, accuracy
 
-def run_training(model, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
+def run_training(model, decision_threshold, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
     # Confirm that it is running on GPU
     if torch.cuda.is_available():
         print("[INFO] Using GPU: {}\n".format(torch.cuda.get_device_name()))
@@ -121,13 +123,15 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
         
         # Train for one epoch
         train_epoch_loss = train_one_epoch(model = model, 
+                                           decision_threshold = decision_threshold,
                                            optimizer = optimizer, 
                                            criterion = criterion, 
                                            dataloader = train_loader,
                                            epoch = epoch,
                                            device = device)
         # Valid for one epoch
-        val_epoch_loss, val_accuracy, val_f1 = valid_one_epoch(model = model, 
+        val_epoch_loss, val_accuracy= valid_one_epoch(model = model, 
+                                         decision_threshold = decision_threshold,
                                          criterion = criterion, 
                                          dataloader = valid_loader,
                                          epoch = epoch,
@@ -137,7 +141,6 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
         history['Train Loss'].append(train_epoch_loss)
         history['Valid Loss'].append(val_epoch_loss)
         history['Accuracy'].append(val_accuracy)
-        history['F1 Score'].append(val_f1)
         history['lr'].append(optimizer.param_groups[0]['lr'])
         
         # Save the model if it's getting better results
@@ -147,7 +150,7 @@ def run_training(model, train_loader, valid_loader, optimizer, scheduler, criter
             best_loss = val_epoch_loss
             best_model_wts = copy.deepcopy(model.state_dict())
 
-            # Save the model based on F1 Score improvement
+            # Save the model based on Loss Score improvement
             PATH = f"saved_weights/LSTM_Loss_{val_epoch_loss:.4f}_epoch{epoch}.bin"
             torch.save(model.state_dict(), PATH)
 
