@@ -17,4 +17,4 @@ class Config:
         self.buy_threshold = 0.002
         self.sell_threshold = -0.002
         self.decision_threshold = 0.5
-        self.use_preloads = True
+        self.use_preloads = False

@@ -48,11 +48,8 @@ def features_engineering(df, backcandles):
     true_range = pd.DataFrame({'high_low': high_low, 'high_close': high_close, 'low_close': low_close})
     df['ATR'] = true_range.max(axis=1).rolling(window=14).mean()
 
-    # 8
-    df['VWAP'] = (df['close'] * df['volume']).cumsum() / df['volume'].cumsum()
-
     df.fillna(0, inplace=True)
 
-    train_cols = [col for col in df.columns if col not in ['time', 'close_pct_change']]
+    train_cols = [col for col in df.columns if col not in ['time', 'volume', 'close_pct_change']]
     
     return df, train_cols

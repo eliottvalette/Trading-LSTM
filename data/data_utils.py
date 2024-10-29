@@ -102,9 +102,9 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
             df, _ = features_engineering(df, backcandles)
             new_scaled_df = sc.transform(df[train_cols + ['close_pct_change']])
 
-            final_df = pd.concat([final_df, df])
+            final_df = pd.concat([df, final_df])
             new_scaled_df = pd.DataFrame(new_scaled_df, columns=train_cols + ['close_pct_change'], index=df['time'])
-            final_dataset_scaled = pd.concat([final_dataset_scaled, new_scaled_df])
+            final_dataset_scaled = pd.concat([new_scaled_df, final_dataset_scaled])
 
 
     final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
@@ -157,8 +157,8 @@ def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_thr
     train_dataset = TensorDataset(torch.tensor(X[:train_size], dtype=torch.float32), torch.tensor(y[:train_size], dtype=torch.float32))
     valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
 
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
-    valid_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
+    valid_loader = DataLoader(valid_dataset, batch_size=16, shuffle=False, num_workers=4)
 
     return train_loader, valid_loader
 
