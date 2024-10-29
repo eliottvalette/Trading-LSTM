@@ -36,18 +36,24 @@ class LSTMModel(nn.Module):
         tag_space = self.Leakyrelu(self.fc1_lstm(lstm_out[:, -1, :]))
         tag_space = self.fc2_lstm(tag_space)
 
+        '''
         # CNN Part :
         cnn_out = self.conv1(features.permute(0, 2, 1))
         cnn_out = self.pool1(cnn_out)
         cnn_out = self.conv2(cnn_out)
         cnn_out = self.pool2(cnn_out)
+        cnn_out = cnn_out.permute(0, 2, 1)
+        cnn_out = cnn_out.mean(dim=1)
         cnn_out = self.Leakyrelu(self.fc1_cnn(cnn_out))
         cnn_out = self.fc2_cnn(cnn_out)
+
 
         # Concatenate LSTM and CNN outputs :
         concat_features = torch.cat((tag_space, cnn_out), dim=1)
         concat_features = self.Leakyrelu(self.fc1_cat(concat_features))
         output = self.fc2_cat(concat_features)
+
+        '''
 
         # Final output :
         output = self.sigmoid(output)

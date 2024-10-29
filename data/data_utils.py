@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 from dotenv import load_dotenv
 import alpaca_trade_api as tradeapi
 import alpaca_trade_api.rest as rest
@@ -125,7 +125,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
 
     # Scale data
     if is_training:
-        sc = MinMaxScaler()
+        sc = RobustScaler()
         sc.fit(df[train_cols + ['close_pct_change']])
 
     dataset_scaled = sc.transform(df[train_cols + ['close_pct_change']])

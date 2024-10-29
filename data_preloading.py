@@ -20,8 +20,8 @@ np.random.seed(seed)
 rd.seed(seed)
 
 symbol = 'AAPL'
-start_date = '2024-01-01'
-end_date = '2024-10-01'
+start_date = '2020-01-01'
+end_date = '2024-01-01'
 timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)
 is_filter = False
 limit = 4*364*24
@@ -39,3 +39,4 @@ df, dataset_scaled, train_sc, train_cols = prepare_data(
     backcandles=backcandles)
 
 df.to_csv(f'data/preloads/{symbol}_{start_date}_{end_date}_{timeframe}.csv', index=False)
+dataset_scaled.to_csv(f'data/preloads/{symbol}_{start_date}_{end_date}_{timeframe}_scaled.csv', index=False)
