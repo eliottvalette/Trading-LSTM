@@ -10,7 +10,7 @@ import numpy as np
 
 
 def plot_confusion_matrix(y_true, y_pred, title, file_title):
-    cm = confusion_matrix(y_true, y_pred, labels=[-1, 1])
+    cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False,
                 xticklabels=['Sell', 'Buy'],
@@ -51,7 +51,7 @@ def train_one_epoch(model, decision_threshold, optimizer, criterion, dataloader,
         epoch_loss = running_loss / dataset_size
 
         train_targets.extend(targets.cpu().numpy())
-        train_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > 0, 1, -1))
+        train_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > decision_threshold, 1, 0))
         
         bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)
 
@@ -87,7 +87,7 @@ def valid_one_epoch(model, decision_threshold, criterion, dataloader, epoch, dev
         dataset_size += batch_size
 
         valid_targets.extend(targets.cpu().numpy())
-        valid_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > 0, 1, -1))
+        valid_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > decision_threshold, 1, 0))
 
         epoch_loss = running_loss / dataset_size
 
@@ -158,7 +158,7 @@ def run_training(model, decision_threshold, train_loader, valid_loader, optimize
 
         print()
 
-        scheduler.step()
+        scheduler.step(val_epoch_loss)
     
     end = time.time()
     

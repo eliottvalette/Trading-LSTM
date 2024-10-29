@@ -5,7 +5,7 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 
-def plot_portfolio_value(timestamps, portfolio_values, annotations_df, add_annotation = False):
+def plot_portfolio_value(timestamps, portfolio_values, annotations_df, add_annotation = True):
     """Plot portfolio value over time with optional annotations for buy/sell actions."""
     plt.figure(figsize=(14, 7))
     plt.plot(timestamps, portfolio_values, label='Portfolio Value', color='blue')
@@ -90,7 +90,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
 
         # Predicted and true prices in normalized form
         order_prediction = model(features).cpu().detach().numpy().flatten()
-        BHS_pred = 1 if order_prediction > decision_threshold else -1 
+        BHS_pred = 1 if order_prediction > decision_threshold else 0
 
         if step < 10 :
             print('order_prediction : ',order_prediction)
@@ -110,7 +110,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
                 buy_sell_annotations.append(['Buy', portfolio_value_temp, timestamps[-1]])
                 # print(f"Bought {nb_share_affordable} shares at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On: {timestamps[-1]}")
 
-        elif BHS_pred == -1 and shares_owned > 0:
+        elif BHS_pred == 0 and shares_owned > 0:
             # Sell all shares
             total_revenue = shares_owned * current_price * (1 - commission)
             capital += total_revenue

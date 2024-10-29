@@ -53,7 +53,7 @@ def filter_close(df):
 def label_data(y, buy_threshold, sell_threshold):
     labels = []
     for change in y:
-        labels.append( 1 if change > 0 else -1 )
+        labels.append( 1 if change > 0 else 0 )
     return labels
 
 
@@ -72,7 +72,8 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Categorize hours and calculate close change
             df['hour'] = df['time'].dt.hour
-            df['close_pct_change'] = df['close'].diff().fillna(0)
+            df['close_pct_change'] = df['close'].diff().fillna(0).clip(lower=-10, upper=10)
+
 
             # Perform feature engineering
             df, train_cols = features_engineering(df, backcandles)
@@ -95,7 +96,7 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Categorize hours and calculate close change
             df['hour'] = df['time'].dt.hour
-            df['close_pct_change'] = df['close'].diff().fillna(0)
+            df['close_pct_change'] = df['close'].diff().fillna(0).clip(lower=-10, upper=10)
 
             # Perform feature engineering
             df, _ = features_engineering(df, backcandles)
@@ -118,7 +119,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
     # Categorize Hours
     df['hour'] = df['time'].dt.hour
 
-    df['close_pct_change'] = df['close'].pct_change().shift(-1).fillna(0)
+    df['close_pct_change'] = df['close'].pct_change().shift(-1).fillna(0).clip(lower=-10, upper=10)
     df, train_cols = features_engineering(df, backcandles)
     print(train_cols)
 
@@ -132,7 +133,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
 
     return df, dataset_scaled, sc, train_cols
 
-def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, valid_size=2160):
+def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, train_ratio = 0.95):
     X_dataset = dataset_scaled[train_cols]
     y_dataset = dataframe['close_pct_change'].values
 
@@ -146,22 +147,18 @@ def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_thr
     y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
     y = np.array(y)
 
-    print('close_pct_change :', dataframe['close_pct_change'].describe())
-    
-    # Display the counts of each label
-    shifted_y = y + 1  # -1 becomes 0, 1 becomes 2
-    label_counts = np.bincount(shifted_y)
-    print('Label counts for -1, 1:', dict(zip([-1, 1], label_counts)))  
+    print('close_pct_change :', dataframe['close_pct_change'].describe()) 
+    print('buy_sell_label :', np.unique(y, return_counts=True))
 
     # Split data into training and validation datasets
-    train_size = int(len(X) - valid_size)
+    train_size = max(int(len(X) * train_ratio), len(X) - 2176)
 
     # Convert data to PyTorch DataLoader objects
     train_dataset = TensorDataset(torch.tensor(X[:train_size], dtype=torch.float32), torch.tensor(y[:train_size], dtype=torch.float32))
     valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
 
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=4)
-    valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=4)
+    valid_loader = DataLoader(valid_dataset, batch_size=8, shuffle=False, num_workers=4)
 
     return train_loader, valid_loader
 
@@ -180,11 +177,7 @@ def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_t
     y = np.array(y)
 
     print('close_pct_change :', dataframe['close_pct_change'].describe())
-
-    # Display the counts of each label
-    shifted_y = y + 1  # -1 becomes 0, 1 becomes 2
-    label_counts = np.bincount(shifted_y)
-    print('Label counts for -1, 1:', dict(zip([-1, 1], label_counts)))  
+    print('buy_sell_label :', np.unique(y, return_counts=True))
 
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     return DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)

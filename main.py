@@ -18,7 +18,7 @@ np.random.seed(seed)
 rd.seed(seed)
 
 def criterion(outputs, targets):
-    loss = nn.MSELoss()(outputs, targets)
+    loss = nn.BCELoss()(outputs, targets)
     return loss
 
 if __name__ == "__main__":
@@ -65,8 +65,8 @@ if __name__ == "__main__":
                            dropout_prob = 0.2)
     lstm_model = lstm_model.to(device)
     
-    optimizer = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
+    optimizer = Adam(lstm_model.parameters(), lr=0.0005, weight_decay=1e-5)
+    scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=3)
 
     # Train the model
     trained_model, history = run_training(

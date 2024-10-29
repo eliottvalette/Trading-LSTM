@@ -13,10 +13,10 @@ class LSTMModel(nn.Module):
                             batch_first=True)
         
         self.hidden2tag = nn.Linear(hidden_dim, 1)
-        self.tanh = nn.Tanh()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, features):
         lstm_out, _ = self.lstm(features)
         tag_space = self.hidden2tag(lstm_out[:, -1, :])
-        output = self.tanh(tag_space)
+        output = self.sigmoid(tag_space)
         return output
