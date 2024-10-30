@@ -80,6 +80,7 @@ def plot_confusion_matrix(predicted_orders, best_orders, title, model_name):
 def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_df, backcandles, train_cols, decision_threshold, trade_decision_threshold, device, model_name, trade_allocation = 0.1):
     model.eval()
 
+    raw_predictions = []
     predicted_orders = []
     predicted_mitigated_orders = []
     best_orders = []
@@ -114,9 +115,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
         BHS_pred = 1 if order_prediction > decision_threshold else 0
         BHS_mitigated_pred = 1 if order_prediction > decision_threshold + trade_decision_threshold else 0 if order_prediction < decision_threshold - trade_decision_threshold else -1
 
-        if step < 10 :
-            print('order_prediction : ',order_prediction)
-
         true_best_order = targets.cpu().numpy().flatten()
 
         # Simulate investment based on model prediction
@@ -148,6 +146,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
         current_prices.append(current_price)
 
         # Store predicted and true orders
+        raw_predictions.append(order_prediction)
         predicted_orders.append(BHS_pred)
         best_orders.append(true_best_order)
 
@@ -161,6 +160,9 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
     # Final Portfolio Summary
     print("Final Portfolio Value: {:.2f}".format(portfolio_values[-1]))
     print("Augmentation of the portfolio: {:.2%}".format((portfolio_values[-1] - initial_capital) / initial_capital))
+
+    raw_prediction = pd.DataFrame(raw_predictions, columns=['raw_prediction'])
+    print('raw_predictions description :', raw_predictions.describe())
 
     buy_sell_annotations_df = pd.DataFrame(buy_sell_annotations, columns=['Action', 'Portfolio', 'Price', 'Timestamp'])
     buy_sell_annotations_df['Timestamp'] = pd.to_datetime(buy_sell_annotations_df['Timestamp'])

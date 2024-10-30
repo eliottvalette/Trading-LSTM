@@ -35,3 +35,4 @@ def plot_training_metrics(history, model_name):
     if not os.path.exists('logs'):
         os.makedirs('logs')
     plt.savefig(f'logs/metrics_{model_name}.png')
+    plt.close()

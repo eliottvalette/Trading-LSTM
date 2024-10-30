@@ -19,6 +19,7 @@ def plot_confusion_matrix(y_true, y_pred, title, file_title, model_name):
     plt.ylabel("True Labels")
     plt.title(title)
     plt.savefig(f'logs/confusion_matrix_{file_title}_{model_name}.png')
+    plt.close()
 
 
 def train_one_epoch(model, model_name, decision_threshold, optimizer, criterion, dataloader, epoch, device):
@@ -176,4 +177,42 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
     # load best model weights
     model.load_state_dict(best_model_wts)
     
+    return model, history
+
+def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid_loader, num_epochs, device):
+    history = defaultdict(list)
+    
+    # Collect training data
+    train_features, train_targets = [], []
+    for features, targets in train_loader:
+        # Reshape features to 2D: [Batch, Channels * Sequence_length]
+        reshaped_features = features.view(features.size(0), -1).cpu().numpy()
+        train_features.append(reshaped_features)
+        train_targets.extend(targets.cpu().numpy())
+    
+    # Fit the LGBM model on aggregated training data
+    train_features = np.concatenate(train_features, axis=0)
+    model.fit(train_features, train_targets)
+    
+    # Collect validation data and predict
+    valid_features, valid_targets = [], []
+    valid_predictions = []
+    for features, targets in valid_loader:
+        reshaped_features = features.view(features.size(0), -1).cpu().numpy()
+        valid_features.append(reshaped_features)
+        valid_targets.extend(targets.cpu().numpy())
+    
+    # Predict using the LGBM model on validation set
+    valid_features = np.concatenate(valid_features, axis=0)
+    valid_predictions = model.predict(valid_features)
+    
+    # Calculate metrics
+    accuracy = accuracy_score(valid_targets, valid_predictions)
+    cm = confusion_matrix(valid_targets, valid_predictions)
+    
+    print(f"Validation Metrics - Accuracy: {accuracy:.4f}")
+
+    plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title = "valid", model_name = model_name)        
+
+        
     return model, history

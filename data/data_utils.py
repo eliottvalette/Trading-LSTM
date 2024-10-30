@@ -150,7 +150,7 @@ def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_thr
     y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
     y = np.array(y)
 
-    print('close_pct_change :', dataframe['close_pct_change'].describe()) 
+    print('close_pct_change descritpion:', dataframe['close_pct_change'].describe()) 
     print('buy_sell_label :', np.unique(y, return_counts=True))
 
     # Split data into training and validation datasets
@@ -179,7 +179,7 @@ def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_t
     y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
     y = np.array(y)
 
-    print('close_pct_change :', dataframe['close_pct_change'].describe())
+    print('close_pct_change descritpion :', dataframe['close_pct_change'].describe())
     print('buy_sell_label :', np.unique(y, return_counts=True))
 
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))

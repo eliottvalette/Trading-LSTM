@@ -1,7 +1,8 @@
 from config import Config
 from data.data_utils import prepare_data_from_preloads, prepare_data, create_test_loader, training_loaders
-from models.models import LSTMModel, CNNModel
-from models.train import run_training
+from models.models import LSTMModel, CNNModel, GradBOOSTModel
+from models.ensembling import ensemble_predict
+from models.train import run_training, run_training_LGBM
 from models.evaluate import simulate_investment
 from utils.visualisation import plot_training_metrics
 from torch.optim import Adam, lr_scheduler
@@ -23,7 +24,7 @@ def criterion(outputs, targets):
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-    print("Using device: ", device)
+    print("Using device : ", device)
 
     # Set up constants and configurations
     config = Config()
@@ -35,8 +36,7 @@ if __name__ == "__main__":
             timeframe=config.timeframe, 
             is_filter=False, 
             is_training=True,
-            backcandles=config.backcandles
-        )
+            backcandles=config.backcandles)
     else :
         df, dataset_scaled, train_sc, train_cols = prepare_data(
             symbol=config.symbol, 
@@ -55,8 +55,7 @@ if __name__ == "__main__":
         backcandles=config.backcandles,
         train_cols=train_cols,
         buy_threshold=config.buy_threshold,
-        sell_threshold=config.sell_threshold,
-        )
+        sell_threshold=config.sell_threshold)
 
     # Initialize LSTM model, optimizer, and scheduler
     lstm_model = LSTMModel(embedding_dim=len(train_cols), 
@@ -79,8 +78,7 @@ if __name__ == "__main__":
         scheduler=scheduler_lstm,
         criterion=criterion,
         num_epochs=config.num_epochs,
-        device=device
-    )
+        device=device)
 
     # Plot training metrics
     plot_training_metrics(history_lstm, 'LSTM')
@@ -107,11 +105,26 @@ if __name__ == "__main__":
         scheduler=scheduler_cnn,
         criterion=criterion,
         num_epochs=config.num_epochs,
-        device=device
-    )
+        device=device)
 
     # Plot training metrics
     plot_training_metrics(history_cnn, 'CNN')
+
+    # Initialize the LGBM model
+    gradboost_model = GradBOOSTModel(num_leaves=128, 
+                           max_depth=5, 
+                           learning_rate=0.05, 
+                           n_estimators=100)
+
+    # Train the LGBM model
+    trained_model_gradboost, history_gradboost = run_training_LGBM(
+        model=gradboost_model,
+        model_name='LGBM',
+        decision_threshold=config.decision_threshold,
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        num_epochs=config.num_epochs,
+        device=device)
 
      # Prepare test data
     test_df, test_dataset_scaled, _, _ = prepare_data(symbol=config.symbol, 
@@ -125,44 +138,59 @@ if __name__ == "__main__":
                                           backcandles=config.backcandles)
 
     # Create test loader
-    test_loader = create_test_loader(
-        dataframe = test_df,
+    test_loader = create_test_loader(dataframe = test_df,
         dataset_scaled=test_dataset_scaled,
         backcandles=config.backcandles,
         train_cols=train_cols,
         buy_threshold=config.buy_threshold,
-        sell_threshold=config.sell_threshold, 
+        sell_threshold=config.sell_threshold)
+
+    trade_decision_threshold = 0.02
+    # Run simulation on LSTM
+    simulate_investment(model = trained_model_lstm, 
+            dataloader = test_loader, 
+            capital = config.initial_capital, 
+            shares_owned = config.shares_owned, 
+            scaler = train_sc,
+            test_df = test_df,
+            backcandles=config.backcandles,
+            train_cols=train_cols,
+            decision_threshold=config.decision_threshold, # to differenciate buy or sell signal for conf matrix
+            trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
+            device = device,
+            model_name = 'LSTM')
+    
+    # Run simulation on CNN
+    simulate_investment(model = trained_model_cnn, 
+            dataloader = test_loader, 
+            capital = config.initial_capital, 
+            shares_owned = config.shares_owned, 
+            scaler = train_sc,
+            test_df = test_df,
+            backcandles=config.backcandles,
+            train_cols=train_cols,
+            decision_threshold=config.decision_threshold, # to differenciate buy or sell signal for conf matrix
+            trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
+            device = device,
+            model_name = 'CNN')
+        
+    ensemble_accuracy, ensemble_cm = ensemble_predict(
+    lstm_model=trained_model_lstm,
+    cnn_model=trained_model_cnn,
+    gradboost_model=trained_model_gradboost,
+    dataloader=test_loader,
+    device=device,
+    decision_threshold=config.decision_threshold,
+    strategy='soft'
     )
 
-    while input('Quit ?') != 'q' :
-        trade_decision_threshold = float(input('trade_decision_threshold? '))
-        # Run simulation on LSTM
-        simulate_investment(model = trained_model_lstm, 
-                dataloader = test_loader, 
-                capital = config.initial_capital, 
-                shares_owned = config.shares_owned, 
-                scaler = train_sc,
-                test_df = test_df,
-                backcandles=config.backcandles,
-                train_cols=train_cols,
-                decision_threshold=config.decision_threshold, # to differenciate buy or sell signal for conf matrix
-                trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
-                device = device,
-                model_name = 'LSTM'
-                )
-        
-        # Run simulation on CNN
-        simulate_investment(model = trained_model_cnn, 
-                dataloader = test_loader, 
-                capital = config.initial_capital, 
-                shares_owned = config.shares_owned, 
-                scaler = train_sc,
-                test_df = test_df,
-                backcandles=config.backcandles,
-                train_cols=train_cols,
-                decision_threshold=config.decision_threshold, # to differenciate buy or sell signal for conf matrix
-                trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
-                device = device,
-                model_name = 'CNN'
-                )
+    ensemble_accuracy, ensemble_cm = ensemble_predict(
+    lstm_model=trained_model_lstm,
+    cnn_model=trained_model_cnn,
+    gradboost_model=trained_model_gradboost,
+    dataloader=test_loader,
+    device=device,
+    decision_threshold=config.decision_threshold,
+    strategy='hard'
+    )
 

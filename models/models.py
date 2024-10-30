@@ -67,17 +67,23 @@ class CNNModel(nn.Module):
         return output
     
 class GradBOOSTModel(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim, num_layers=2, dropout_prob=0.2):
+    def __init__(self, num_leaves=128, max_depth=5, learning_rate=0.05, n_estimators=100):
         self.lgbm_model = lgb.LGBMClassifier(
-            num_leaves=31,
-            learning_rate=0.05,
-            n_estimators=100
+            num_leaves=128, 
+            max_depth=5, 
+            learning_rate=0.05, 
+            n_estimators=100,
+            objective='binary',
+            n_jobs=-1,
+            random_state=42,
+            verbosity=-1,
+            metric='binary_logloss'
         )
+                           
 
     def fit(self, features, targets):
         # Fit the model with features and targets
         self.lgbm_model.fit(features, targets)
 
     def predict(self, features):
-        # Predict using the fitted LGBM model
         return self.lgbm_model.predict(features)
