@@ -49,7 +49,7 @@ def features_engineering(df, backcandles):
     df['ATR'] = true_range.max(axis=1).rolling(window=14).mean()
 
     df.fillna(0, inplace=True)
-
-    train_cols = [col for col in df.columns if col not in ['time', 'close_pct_change'] + ['volume', 'open', 'high', 'low', 'close', 'hour']] # Obviously to drop + [tests]
+    
+    train_cols = [col for col in df.columns if col not in ['time', 'close_pct_change'] + ['SMA', 'Upper Band', 'Lower Band', 'Stochastic', 'ATR', 'hour', 'Signal Line', 'ATR'] ] # Obviously to drop + [maybe noisy]
     
     return df, train_cols

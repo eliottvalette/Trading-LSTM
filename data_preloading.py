@@ -1,10 +1,5 @@
 from config import Config
-from data.data_utils import prepare_data, create_test_loader, training_loaders
-from models.model import LSTMModel
-from models.train import run_training
-from models.evaluate import simulate_investment
-from utils.visualisation import plot_training_metrics
-from torch.optim import Adam, lr_scheduler
+from data.data_utils import prepare_data
 import alpaca_trade_api.rest as rest
 import torch.nn as nn
 import pandas as pd
@@ -19,6 +14,8 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 rd.seed(seed)
 
+config=Config()
+
 symbol = 'AAPL'
 start_date = '2020-01-01'
 end_date = '2024-01-01'
@@ -26,7 +23,7 @@ timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)
 is_filter = False
 limit = 4*364*24
 is_training = True
-backcandles = 60
+backcandles = config.backcandles
 
 df, dataset_scaled, train_sc, train_cols = prepare_data(
     symbol=symbol, 

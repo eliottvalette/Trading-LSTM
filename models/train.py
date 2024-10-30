@@ -9,7 +9,7 @@ import seaborn as sns
 import numpy as np
 
 
-def plot_confusion_matrix(y_true, y_pred, title, file_title):
+def plot_confusion_matrix(y_true, y_pred, title, file_title, model_name):
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
     plt.figure(figsize=(8, 6))
     sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", cbar=False,
@@ -18,10 +18,10 @@ def plot_confusion_matrix(y_true, y_pred, title, file_title):
     plt.xlabel("Predicted Labels")
     plt.ylabel("True Labels")
     plt.title(title)
-    plt.savefig(f'logs/confusion_matrix_{file_title}.png')
+    plt.savefig(f'logs/confusion_matrix_{file_title}_{model_name}.png')
 
 
-def train_one_epoch(model, decision_threshold, optimizer, criterion, dataloader, epoch, device):
+def train_one_epoch(model, model_name, decision_threshold, optimizer, criterion, dataloader, epoch, device):
     model.train()
     running_loss = 0.0
     dataset_size = 0
@@ -56,11 +56,11 @@ def train_one_epoch(model, decision_threshold, optimizer, criterion, dataloader,
         bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)
 
     if epoch == 20 :
-        plot_confusion_matrix(train_targets, train_predictions, title="Training Set Confusion Matrix", file_title = "train")
+        plot_confusion_matrix(train_targets, train_predictions, title="Training Set Confusion Matrix", file_title = "train", model_name = model_name)
 
     return epoch_loss
 
-def valid_one_epoch(model, decision_threshold, criterion, dataloader, epoch, device):    
+def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader, epoch, device):    
     model.eval()
     dataset_size = 0
     running_loss = 0.0
@@ -94,7 +94,7 @@ def valid_one_epoch(model, decision_threshold, criterion, dataloader, epoch, dev
         bar.set_postfix(Epoch=epoch, Valid_Loss=epoch_loss)
 
     if epoch == 20 :
-        plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title = "valid")
+        plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title = "valid", model_name = model_name)
 
     # Calculate metrics
     accuracy = accuracy_score(valid_targets, valid_predictions)
@@ -103,7 +103,7 @@ def valid_one_epoch(model, decision_threshold, criterion, dataloader, epoch, dev
 
     return epoch_loss, accuracy
 
-def run_training(model, decision_threshold, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
+def run_training(model, model_name, decision_threshold, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
     # Confirm that it is running on GPU
     if torch.cuda.is_available():
         print("[INFO] Using GPU: {}\n".format(torch.cuda.get_device_name()))
@@ -123,6 +123,7 @@ def run_training(model, decision_threshold, train_loader, valid_loader, optimize
         
         # Train for one epoch
         train_epoch_loss = train_one_epoch(model = model, 
+                                           model_name = model_name,
                                            decision_threshold = decision_threshold,
                                            optimizer = optimizer, 
                                            criterion = criterion, 
@@ -130,7 +131,8 @@ def run_training(model, decision_threshold, train_loader, valid_loader, optimize
                                            epoch = epoch,
                                            device = device)
         # Valid for one epoch
-        val_epoch_loss, val_accuracy= valid_one_epoch(model = model, 
+        val_epoch_loss, val_accuracy= valid_one_epoch(model = model,
+                                         model_name = model_name,
                                          decision_threshold = decision_threshold,
                                          criterion = criterion, 
                                          dataloader = valid_loader,
@@ -144,7 +146,7 @@ def run_training(model, decision_threshold, train_loader, valid_loader, optimize
         history['lr'].append(optimizer.param_groups[0]['lr'])
         
         # Save the model if it's getting better results
-        if best_loss >= val_epoch_loss:
+        if best_loss >= val_epoch_loss or True :
             print(f"Best Loss Improved ({best_loss} ---> {val_epoch_loss})")
 
             best_loss = val_epoch_loss

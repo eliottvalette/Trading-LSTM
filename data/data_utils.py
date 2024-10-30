@@ -2,7 +2,7 @@ import os
 import torch
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import RobustScaler, MinMaxScaler
 from dotenv import load_dotenv
 import alpaca_trade_api as tradeapi
 import alpaca_trade_api.rest as rest
@@ -66,6 +66,7 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
     for file in os.listdir('data/preloads'):
         if timeframe in file and final_symbol in file:
             df = pd.read_csv('data/preloads/' + file)
+            print(df)
             df['time'] = pd.to_datetime(df['time'], errors='coerce')
             if is_filter:
                 df = filter_close(df)
@@ -79,11 +80,11 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
             df, train_cols = features_engineering(df, backcandles)
             print(train_cols)
 
-            sc = MinMaxScaler()
-            sc.fit(df[train_cols + ['close_pct_change']])
+            final_scaler = MinMaxScaler()
+            final_scaler.fit(df[train_cols + ['close_pct_change']])
 
             final_df = df
-            final_dataset_scaled = sc.transform(final_df[train_cols + ['close_pct_change']])
+            final_dataset_scaled = final_scaler.transform(final_df[train_cols + ['close_pct_change']])
             final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=df['time'])
 
     # Second pass: apply the scaler to other files
@@ -100,7 +101,9 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Perform feature engineering
             df, _ = features_engineering(df, backcandles)
-            new_scaled_df = sc.transform(df[train_cols + ['close_pct_change']])
+            # temp_sc = MinMaxScaler()
+            # temp_sc.fit(df[train_cols + ['close_pct_change']])
+            new_scaled_df = final_scaler.transform(df[train_cols + ['close_pct_change']])
 
             final_df = pd.concat([df, final_df])
             new_scaled_df = pd.DataFrame(new_scaled_df, columns=train_cols + ['close_pct_change'], index=df['time'])
@@ -108,7 +111,7 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
 
     final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
-    return final_df, final_dataset_scaled, sc, train_cols
+    return final_df, final_dataset_scaled, final_scaler, train_cols
 
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None, backcandles=60):
     df = get_historical_data(symbol, timeframe, start_date, end_date, limit)

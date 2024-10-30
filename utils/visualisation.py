@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import os
 
-def plot_training_metrics(history):
+def plot_training_metrics(history, model_name):
     epochs = range(1, len(history['Train Loss']) + 1)
     plt.figure(figsize=(18, 10))
     
@@ -34,4 +34,4 @@ def plot_training_metrics(history):
     plt.tight_layout()
     if not os.path.exists('logs'):
         os.makedirs('logs')
-    plt.savefig('logs/metrics.png')
+    plt.savefig(f'logs/metrics_{model_name}.png')
