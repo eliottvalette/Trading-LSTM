@@ -34,7 +34,7 @@ def plot_portfolio_value(timestamps, portfolio_values, annotations_df, model_nam
                              arrowprops=arrowprops,
                              fontsize=12, color='red', ha='center', zorder=5)
 
-    plt.savefig(f'logs/portfolio_{model_name}.png', dpi=300)
+    plt.savefig(f'logs/{model_name}_portfolio.png', dpi=300)
     plt.close()
 
 def plot_actual_stock_price(timestamps, current_prices, annotations_df, model_name, add_annotation = True):
@@ -65,7 +65,7 @@ def plot_actual_stock_price(timestamps, current_prices, annotations_df, model_na
                              arrowprops=arrowprops,
                              fontsize=12, color='red', ha='center', zorder=5)
                 
-    plt.savefig(f'logs/annotated_stock_{model_name}.png')
+    plt.savefig(f'logs/{model_name}_annotated_stock.png')
 
 def plot_confusion_matrix(predicted_orders, best_orders, title, model_name):
     """Plot confusion matrix comparing predicted and actual orders."""
@@ -75,10 +75,11 @@ def plot_confusion_matrix(predicted_orders, best_orders, title, model_name):
     plt.xlabel('Predicted Orders')
     plt.ylabel('Actual Orders')
     plt.title('Confusion Matrix')
-    plt.savefig(f'logs/confusion_matrix_evaluate_{title}_{model_name}.png')
+    plt.savefig(f'logs/{model_name}_confusion_matrix_evaluate_{title}.png')
 
 def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_df, backcandles, train_cols, decision_threshold, trade_decision_threshold, device, model_name, trade_allocation = 0.1):
-    model.eval()
+    model.lstm_model.eval()
+    model.cnn_model.eval()
 
     raw_predictions = []
     predicted_orders = []
@@ -161,8 +162,8 @@ def simulate_investment(model, dataloader, capital, shares_owned, scaler, test_d
     print("Final Portfolio Value: {:.2f}".format(portfolio_values[-1]))
     print("Augmentation of the portfolio: {:.2%}".format((portfolio_values[-1] - initial_capital) / initial_capital))
 
-    raw_prediction = pd.DataFrame(raw_predictions, columns=['raw_prediction'])
-    print('raw_predictions description :', raw_predictions.describe())
+    raw_predictions_df = pd.DataFrame(raw_predictions, columns=['raw_prediction'])
+    print('raw_predictions description :\n', raw_predictions_df.describe())
 
     buy_sell_annotations_df = pd.DataFrame(buy_sell_annotations, columns=['Action', 'Portfolio', 'Price', 'Timestamp'])
     buy_sell_annotations_df['Timestamp'] = pd.to_datetime(buy_sell_annotations_df['Timestamp'])

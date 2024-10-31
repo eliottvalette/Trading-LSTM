@@ -27,8 +27,7 @@ class LSTMModel(nn.Module):
         lstm_out, _ = self.lstm(features)
         tag_space = self.Leakyrelu(self.fc1_lstm(lstm_out[:, -1, :]))
         tag_space = self.fc2_lstm(tag_space)
-        tag_space = self.dropout_lstm(tag_space)
-
+        
         # Final output :
         output = self.sigmoid(tag_space)
         return output
@@ -66,7 +65,7 @@ class CNNModel(nn.Module):
         output = self.sigmoid(cnn_out)
         return output
     
-class GradBOOSTModel(nn.Module):
+class GradBOOSTModel:
     def __init__(self, num_leaves=128, max_depth=5, learning_rate=0.05, n_estimators=100):
         self.lgbm_model = lgb.LGBMClassifier(
             num_leaves=128, 
@@ -87,3 +86,41 @@ class GradBOOSTModel(nn.Module):
 
     def predict(self, features):
         return self.lgbm_model.predict(features)
+        
+class EnsemblingModel(nn.Module):
+    def __init__(self, lstm_model, cnn_model, gradboost_model):
+        super(EnsemblingModel, self).__init__()
+        self.lstm_model = lstm_model
+        self.cnn_model = cnn_model
+        self.gradboost_model = gradboost_model
+
+        # Define trainable weights for each model in the ensemble
+        self.model_weights = nn.Parameter(torch.ones(3))  # Three weights, one per model
+
+        
+
+    def forward(self, features):
+        device = features.device  # Get the device of the input tensor
+
+        lstm_output = self.lstm_model(features)
+        cnn_output = self.cnn_model(features)
+        
+        # Prepare features for GradBOOSTModel and predict
+        gradboost_features = features.view(features.size(0), -1).cpu().numpy()
+        gradboost_output = torch.tensor(
+            self.gradboost_model.predict(gradboost_features),
+            device=device,
+            dtype=torch.float32
+        ).unsqueeze(1)
+
+        # Apply softmax to ensure weights sum to 1
+        normalized_weights = nn.functional.softmax(self.model_weights, dim=0)
+
+        # Weighted sum of the model outputs
+        ensemble_output = (
+            normalized_weights[0] * lstm_output +
+            normalized_weights[1] * cnn_output +
+            normalized_weights[2] * gradboost_output
+        )
+        
+        return ensemble_output

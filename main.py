@@ -1,7 +1,6 @@
 from config import Config
 from data.data_utils import prepare_data_from_preloads, prepare_data, create_test_loader, training_loaders
-from models.models import LSTMModel, CNNModel, GradBOOSTModel
-from models.ensembling import ensemble_predict
+from models.models import LSTMModel, CNNModel, GradBOOSTModel, EnsemblingModel
 from models.train import run_training, run_training_LGBM
 from models.evaluate import simulate_investment
 from utils.visualisation import plot_training_metrics
@@ -125,8 +124,29 @@ if __name__ == "__main__":
         valid_loader=valid_loader,
         num_epochs=config.num_epochs,
         device=device)
+    
+    # Initialize the Ensembling model
+    ensembling_model = EnsemblingModel(trained_model_lstm, trained_model_cnn, trained_model_gradboost)
 
-     # Prepare test data
+    ensembling_model.to(device)
+
+    optimizer_ensembling = Adam(cnn_model.parameters(), lr=0.001, weight_decay=1e-5)
+    scheduler_ensembling = lr_scheduler.ReduceLROnPlateau(optimizer_ensembling, mode='min', factor=0.1, patience=3)
+
+    # Train the ENSEMBLING model
+    trained_ensembling_model, history_ensembling = run_training(
+        model=ensembling_model,
+        model_name='ENSEMBLING',
+        decision_threshold=config.decision_threshold,
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        optimizer=optimizer_ensembling,
+        scheduler=scheduler_ensembling,
+        criterion=criterion,
+        num_epochs=config.num_epochs,
+        device=device)
+
+    # Prepare test data
     test_df, test_dataset_scaled, _, _ = prepare_data(symbol=config.symbol, 
                                           start_date=config.test_start_date, 
                                           end_date=config.test_end_date,
@@ -145,9 +165,9 @@ if __name__ == "__main__":
         buy_threshold=config.buy_threshold,
         sell_threshold=config.sell_threshold)
 
+    # Run simulation
     trade_decision_threshold = 0.02
-    # Run simulation on LSTM
-    simulate_investment(model = trained_model_lstm, 
+    simulate_investment(model = ensembling_model, 
             dataloader = test_loader, 
             capital = config.initial_capital, 
             shares_owned = config.shares_owned, 
@@ -158,39 +178,9 @@ if __name__ == "__main__":
             decision_threshold=config.decision_threshold, # to differenciate buy or sell signal for conf matrix
             trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
             device = device,
-            model_name = 'LSTM')
+            model_name = 'ENSEMBLING')
+
+
     
-    # Run simulation on CNN
-    simulate_investment(model = trained_model_cnn, 
-            dataloader = test_loader, 
-            capital = config.initial_capital, 
-            shares_owned = config.shares_owned, 
-            scaler = train_sc,
-            test_df = test_df,
-            backcandles=config.backcandles,
-            train_cols=train_cols,
-            decision_threshold=config.decision_threshold, # to differenciate buy or sell signal for conf matrix
-            trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
-            device = device,
-            model_name = 'CNN')
         
-    ensemble_accuracy, ensemble_cm = ensemble_predict(
-    lstm_model=trained_model_lstm,
-    cnn_model=trained_model_cnn,
-    gradboost_model=trained_model_gradboost,
-    dataloader=test_loader,
-    device=device,
-    decision_threshold=config.decision_threshold,
-    strategy='soft'
-    )
-
-    ensemble_accuracy, ensemble_cm = ensemble_predict(
-    lstm_model=trained_model_lstm,
-    cnn_model=trained_model_cnn,
-    gradboost_model=trained_model_gradboost,
-    dataloader=test_loader,
-    device=device,
-    decision_threshold=config.decision_threshold,
-    strategy='hard'
-    )
-
+    

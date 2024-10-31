@@ -34,5 +34,5 @@ def plot_training_metrics(history, model_name):
     plt.tight_layout()
     if not os.path.exists('logs'):
         os.makedirs('logs')
-    plt.savefig(f'logs/metrics_{model_name}.png')
+    plt.savefig(f'logs/{model_name}_metrics.png')
     plt.close()

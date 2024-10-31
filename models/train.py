@@ -207,9 +207,7 @@ def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid
     valid_predictions = model.predict(valid_features)
     
     # Calculate metrics
-    accuracy = accuracy_score(valid_targets, valid_predictions)
-    cm = confusion_matrix(valid_targets, valid_predictions)
-    
+    accuracy = accuracy_score(valid_targets, valid_predictions)    
     print(f"Validation Metrics - Accuracy: {accuracy:.4f}")
 
     plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title = "valid", model_name = model_name)        

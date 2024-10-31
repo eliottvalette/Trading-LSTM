@@ -101,8 +101,8 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Perform feature engineering
             df, _ = features_engineering(df, backcandles)
-            # temp_sc = MinMaxScaler()
-            # temp_sc.fit(df[train_cols + ['close_pct_change']])
+            temp_sc = MinMaxScaler()
+            temp_sc.fit(df[train_cols + ['close_pct_change']])
             new_scaled_df = final_scaler.transform(df[train_cols + ['close_pct_change']])
 
             final_df = pd.concat([df, final_df])
@@ -128,7 +128,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
 
     # Scale data
     if is_training:
-        sc = RobustScaler()
+        sc = MinMaxScaler()
         sc.fit(df[train_cols + ['close_pct_change']])
 
     dataset_scaled = sc.transform(df[train_cols + ['close_pct_change']])
