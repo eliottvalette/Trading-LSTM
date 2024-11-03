@@ -16,24 +16,22 @@ rd.seed(seed)
 
 config=Config()
 
-symbol = 'AAPL'
+symbol = 'MSFT'
 start_date = '2020-01-01'
 end_date = '2024-01-01'
 timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)
 is_filter = False
 limit = 4*364*24
-is_training = True
 backcandles = config.backcandles
 
-df, dataset_scaled, train_sc, train_cols = prepare_data(
+df, dataset_scaled, train_cols = prepare_data(
     symbol=symbol, 
     start_date=start_date, 
     end_date=end_date,
     timeframe=timeframe, 
     is_filter=is_filter, 
     limit= limit, 
-    is_training=is_training,
     backcandles=backcandles)
 
 df.to_csv(f'data/preloads/{symbol}_{start_date}_{end_date}_{timeframe}.csv', index=False)
-dataset_scaled.to_csv(f'data/preloads/{symbol}_{start_date}_{end_date}_{timeframe}_scaled.csv', index=False)
+# dataset_scaled.to_csv(f'data/preloads/{symbol}_{start_date}_{end_date}_{timeframe}_scaled.csv', index=False)

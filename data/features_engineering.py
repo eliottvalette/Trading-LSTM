@@ -48,7 +48,9 @@ def features_engineering(df, backcandles):
     true_range = pd.DataFrame({'high_low': high_low, 'high_close': high_close, 'low_close': low_close})
     df['ATR'] = true_range.max(axis=1).rolling(window=14).mean()
 
+    # Small adjustments
     df.fillna(0, inplace=True)
+    df['volume'] = df['volume'].pct_change().fillna(0)
     
     train_cols = [col for col in df.columns if col not in ['time', 'close_pct_change'] + ['SMA', 'Upper Band', 'Lower Band', 'Stochastic', 'ATR', 'hour', 'Signal Line', 'ATR'] ] # Obviously to drop + [maybe noisy]
     

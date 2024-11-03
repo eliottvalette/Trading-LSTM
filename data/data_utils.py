@@ -10,6 +10,7 @@ from torch.utils.data import TensorDataset, DataLoader
 from sklearn.model_selection import train_test_split
 from data.features_engineering import features_engineering
 
+
 load_dotenv()
 API_KEY = os.getenv('ALPACA_API_KEY')
 SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
@@ -56,9 +57,39 @@ def label_data(y, buy_threshold, sell_threshold):
         labels.append( 1 if change > 0 else 0 )
     return labels
 
+from sklearn.preprocessing import MinMaxScaler
+import numpy as np
 
-def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=True, sc=None, backcandles=60):
-    final_df, final_dataset_scaled = None, None
+def scale_each_months(df, train_cols):
+    df_scaled = df.copy()
+    for year in df['time'].dt.year.unique():
+        # First half of the year (months 1-6)
+        first_half_df = df[(df['time'].dt.month <= 6) & (df['time'].dt.year == year)].copy()
+        if len(first_half_df) > 0:
+            # Handle NaN and inf values
+            first_half_df[train_cols] = first_half_df[train_cols].replace([np.inf, -np.inf], np.nan)
+            first_half_df[train_cols] = first_half_df[train_cols].fillna(first_half_df[train_cols].mean())
+            
+            scaler = MinMaxScaler()
+            first_half_scaled = scaler.fit_transform(first_half_df[train_cols])
+            df_scaled.loc[first_half_df.index, train_cols] = first_half_scaled
+
+        # Second half of the year (months 7-12)
+        second_half_df = df[(df['time'].dt.month > 6) & (df['time'].dt.year == year)].copy()
+        if len(second_half_df) > 0:
+            # Handle NaN and inf values
+            second_half_df[train_cols] = second_half_df[train_cols].replace([np.inf, -np.inf], np.nan)
+            second_half_df[train_cols] = second_half_df[train_cols].fillna(second_half_df[train_cols].mean())
+
+            scaler = MinMaxScaler()
+            second_half_scaled = scaler.fit_transform(second_half_df[train_cols])
+            df_scaled.loc[second_half_df.index, train_cols] = second_half_scaled
+            
+    return df_scaled
+
+
+def prepare_data_from_preloads(final_symbol, timeframe, is_filter, backcandles=60):
+    final_df, final_df_scaled = None, None
     # Convert timeframe
     timeframe = str(timeframe)
 
@@ -75,17 +106,13 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
             df['hour'] = df['time'].dt.hour
             df['close_pct_change'] = df['close'].diff().fillna(0).clip(lower=-10, upper=10)
 
-
             # Perform feature engineering
             df, train_cols = features_engineering(df, backcandles)
             print(train_cols)
 
-            final_scaler = MinMaxScaler()
-            final_scaler.fit(df[train_cols + ['close_pct_change']])
-
             final_df = df
-            final_dataset_scaled = final_scaler.transform(final_df[train_cols + ['close_pct_change']])
-            final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=df['time'])
+            final_df_scaled = scale_each_months(df, train_cols)
+            final_df_scaled = pd.DataFrame(final_df_scaled, columns=train_cols + ['close_pct_change'], index=df['time'])
 
     # Second pass: apply the scaler to other files
     for file in os.listdir('data/preloads'):
@@ -101,40 +128,33 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, is_training=T
 
             # Perform feature engineering
             df, _ = features_engineering(df, backcandles)
-            temp_sc = MinMaxScaler()
-            temp_sc.fit(df[train_cols + ['close_pct_change']])
-            new_scaled_df = final_scaler.transform(df[train_cols + ['close_pct_change']])
+            new_scaled_df = scale_each_months(df, train_cols)
 
             final_df = pd.concat([df, final_df])
             new_scaled_df = pd.DataFrame(new_scaled_df, columns=train_cols + ['close_pct_change'], index=df['time'])
-            final_dataset_scaled = pd.concat([new_scaled_df, final_dataset_scaled])
+            final_df_scaled = pd.concat([new_scaled_df, final_df_scaled])
 
 
-    final_dataset_scaled = pd.DataFrame(final_dataset_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
-    return final_df, final_dataset_scaled, final_scaler, train_cols
+    final_df_scaled = pd.DataFrame(final_df_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
+    return final_df, final_df_scaled, train_cols
 
-def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, is_training=True, sc=None, backcandles=60):
+def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, backcandles=60):
     df = get_historical_data(symbol, timeframe, start_date, end_date, limit)
     if is_filter :
         # Filter to keep only open market hours
         df = filter_close(df)
 
     # Categorize Hours
-    df['hour'] = df['time'].dt.hour
-
+    df['hour'] = df['time'].dt.hour.astype(float)
     df['close_pct_change'] = df['close'].pct_change().shift(-1).fillna(0).clip(lower=-10, upper=10)
+    
     df, train_cols = features_engineering(df, backcandles)
     print(train_cols)
+    
+    df_scaled = scale_each_months(df, train_cols)
+    df_scaled = pd.DataFrame(df_scaled, columns=train_cols + ['close_pct_change'], index= df['time'])
 
-    # Scale data
-    if is_training:
-        sc = MinMaxScaler()
-        sc.fit(df[train_cols + ['close_pct_change']])
-
-    dataset_scaled = sc.transform(df[train_cols + ['close_pct_change']])
-    dataset_scaled = pd.DataFrame(dataset_scaled, columns=train_cols + ['close_pct_change'], index= df['time'])
-
-    return df, dataset_scaled, sc, train_cols
+    return df, df_scaled, train_cols
 
 def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold, train_ratio = 0.95):
     X_dataset = dataset_scaled[train_cols]

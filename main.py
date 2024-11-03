@@ -30,21 +30,19 @@ if __name__ == "__main__":
 
     # Prepare data
     if config.use_preloads :
-        df, dataset_scaled, train_sc, train_cols = prepare_data_from_preloads(
+        df, dataset_scaled, train_cols = prepare_data_from_preloads(
             final_symbol=config.symbol,
             timeframe=config.timeframe, 
             is_filter=False, 
-            is_training=True,
             backcandles=config.backcandles)
     else :
-        df, dataset_scaled, train_sc, train_cols = prepare_data(
+        df, dataset_scaled, train_cols = prepare_data(
             symbol=config.symbol, 
             start_date=config.start_date, 
             end_date=config.end_date,
             timeframe=config.timeframe, 
             is_filter=False, 
             limit= 30_000, 
-            is_training=True,
             backcandles=config.backcandles)
 
     # Prepare training and validation data
@@ -60,7 +58,7 @@ if __name__ == "__main__":
     lstm_model = LSTMModel(embedding_dim=len(train_cols), 
                            hidden_dim = 128,
                            num_layers = 2, 
-                           dropout_prob = 0.2)
+                           dropout_prob = 0.3)
     lstm_model = lstm_model.to(device)
     
     optimizer_lstm = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
@@ -133,28 +131,13 @@ if __name__ == "__main__":
     optimizer_ensembling = Adam(cnn_model.parameters(), lr=0.001, weight_decay=1e-5)
     scheduler_ensembling = lr_scheduler.ReduceLROnPlateau(optimizer_ensembling, mode='min', factor=0.1, patience=3)
 
-    # Train the ENSEMBLING model
-    trained_ensembling_model, history_ensembling = run_training(
-        model=ensembling_model,
-        model_name='ENSEMBLING',
-        decision_threshold=config.decision_threshold,
-        train_loader=train_loader,
-        valid_loader=valid_loader,
-        optimizer=optimizer_ensembling,
-        scheduler=scheduler_ensembling,
-        criterion=criterion,
-        num_epochs=config.num_epochs,
-        device=device)
-
     # Prepare test data
-    test_df, test_dataset_scaled, _, _ = prepare_data(symbol=config.symbol, 
+    test_df, test_dataset_scaled, _ = prepare_data(symbol=config.symbol, 
                                           start_date=config.test_start_date, 
                                           end_date=config.test_end_date,
                                           timeframe=config.timeframe, 
                                           is_filter=False, 
                                           limit= 20_000, 
-                                          is_training=False,
-                                          sc = train_sc,
                                           backcandles=config.backcandles)
 
     # Create test loader
@@ -169,9 +152,9 @@ if __name__ == "__main__":
     trade_decision_threshold = 0.02
     simulate_investment(model = ensembling_model, 
             dataloader = test_loader, 
+            dataframe = test_df,
             capital = config.initial_capital, 
             shares_owned = config.shares_owned, 
-            scaler = train_sc,
             test_df = test_df,
             backcandles=config.backcandles,
             train_cols=train_cols,

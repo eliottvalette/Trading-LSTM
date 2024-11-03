@@ -94,9 +94,6 @@ class EnsemblingModel(nn.Module):
         self.cnn_model = cnn_model
         self.gradboost_model = gradboost_model
 
-        # Define trainable weights for each model in the ensemble
-        self.model_weights = nn.Parameter(torch.ones(3))  # Three weights, one per model
-
         
 
     def forward(self, features):
@@ -113,14 +110,13 @@ class EnsemblingModel(nn.Module):
             dtype=torch.float32
         ).unsqueeze(1)
 
-        # Apply softmax to ensure weights sum to 1
-        normalized_weights = nn.functional.softmax(self.model_weights, dim=0)
+        weights = [0.3, 0.3, 0.4]
 
         # Weighted sum of the model outputs
         ensemble_output = (
-            normalized_weights[0] * lstm_output +
-            normalized_weights[1] * cnn_output +
-            normalized_weights[2] * gradboost_output
+            weights[0] * lstm_output +
+            weights[1] * cnn_output +
+            weights[2] * gradboost_output
         )
         
         return ensemble_output
