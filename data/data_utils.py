@@ -97,8 +97,6 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, backcandles=6
     for file in os.listdir('data/preloads'):
         if timeframe in file and final_symbol in file:
             df = pd.read_csv('data/preloads/' + file)
-            print(df)
-            df['time'] = pd.to_datetime(df['time'], errors='coerce')
             if is_filter:
                 df = filter_close(df)
 
@@ -112,13 +110,14 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, backcandles=6
 
             final_df = df
             final_df_scaled = scale_each_months(df, train_cols)
+            print('right after scaling')
+            print(final_df_scaled)
             final_df_scaled = pd.DataFrame(final_df_scaled, columns=train_cols + ['close_pct_change'], index=df['time'])
 
     # Second pass: apply the scaler to other files
     for file in os.listdir('data/preloads'):
         if timeframe in file and final_symbol not in file:
             df = pd.read_csv('data/preloads/' + file)
-            df['time'] = pd.to_datetime(df['time'], errors='coerce')
             if is_filter:
                 df = filter_close(df)
 
@@ -136,6 +135,7 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, backcandles=6
 
 
     final_df_scaled = pd.DataFrame(final_df_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
+
     return final_df, final_df_scaled, train_cols
 
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, backcandles=60):
@@ -152,7 +152,12 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
     print(train_cols)
     
     df_scaled = scale_each_months(df, train_cols)
+    print('right after scaling')
+    print(df_scaled)
     df_scaled = pd.DataFrame(df_scaled, columns=train_cols + ['close_pct_change'], index= df['time'])
+
+    print(df)
+    print(df_scaled)
 
     return df, df_scaled, train_cols
 
