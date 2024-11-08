@@ -42,7 +42,6 @@ if __name__ == "__main__":
             end_date=config.end_date,
             timeframe=config.timeframe, 
             is_filter=False, 
-            limit= 30_000, 
             backcandles=config.backcandles)
 
     # Prepare training and validation data
@@ -136,8 +135,7 @@ if __name__ == "__main__":
                                           start_date=config.test_start_date, 
                                           end_date=config.test_end_date,
                                           timeframe=config.timeframe, 
-                                          is_filter=False, 
-                                          limit= 20_000, 
+                                          is_filter=False,
                                           backcandles=config.backcandles)
 
     # Create test loader

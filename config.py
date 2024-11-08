@@ -5,7 +5,7 @@ import os
 class Config:
     def __init__(self):
         self.symbol = 'AAPL'
-        self.backcandles = 60
+        self.backcandles = 30
         self.timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)
         self.start_date = '2023-01-01'
         self.end_date = '2024-05-01'

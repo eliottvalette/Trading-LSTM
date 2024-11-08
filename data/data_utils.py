@@ -1,5 +1,6 @@
 import os
 import torch
+import yfinance as yf
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import RobustScaler, MinMaxScaler
@@ -17,13 +18,23 @@ SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
 BASE_URL = 'https://paper-api.alpaca.markets'
 
 api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
-
-def get_historical_data(symbol, timeframe, start_date, end_date, limit=10000):
-    # Fetch data from Alpaca
+    
+def get_historical_data_yf(symbol, timeframe, start_date, end_date, limit=10000):
     try:
-        bars = api.get_bars(symbol, timeframe, start=start_date, end=end_date, limit=limit).df
+        # Fetch data from Yahoo Finance
+        bars = yf.download(tickers=symbol,start=start_date,end=end_date,interval='1h')
+
+        # Convert the index to datetime and reset for consistency
         bars['time'] = pd.to_datetime(bars.index)
-        return bars[['time', 'open', 'high', 'low', 'close', 'volume']]
+
+        # Select and rename columns to match the expected structure
+        bars = bars.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
+
+        # Ensure the final DataFrame has the required columns and order
+        bars = bars[['time', 'open', 'high', 'low', 'close', 'volume']]
+        bars.columns = bars.columns.get_level_values(0)
+        return bars
+
     except Exception as e:
         print(f"Error while fetching historical data: {e}")
         return None
@@ -97,49 +108,57 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, backcandles=6
     for file in os.listdir('data/preloads'):
         if timeframe in file and final_symbol in file:
             df = pd.read_csv('data/preloads/' + file)
+            df['time'] = pd.to_datetime(df['time'], errors='coerce')
             if is_filter:
                 df = filter_close(df)
 
             # Categorize hours and calculate close change
-            df['hour'] = df['time'].dt.hour
+            df['hour'] = df['time'].dt.hour.astype(float)
             df['close_pct_change'] = df['close'].diff().fillna(0).clip(lower=-10, upper=10)
 
             # Perform feature engineering
             df, train_cols = features_engineering(df, backcandles)
-            print(train_cols)
 
+            # Save df
             final_df = df
-            final_df_scaled = scale_each_months(df, train_cols)
-            print('right after scaling')
-            print(final_df_scaled)
-            final_df_scaled = pd.DataFrame(final_df_scaled, columns=train_cols + ['close_pct_change'], index=df['time'])
+            
+            new_df_scaled = scale_each_months(df, train_cols)
+
+            final_df_scaled = new_df_scaled[train_cols + ['close_pct_change']]
+            final_df_scaled.index = final_df['time']
+
 
     # Second pass: apply the scaler to other files
     for file in os.listdir('data/preloads'):
         if timeframe in file and final_symbol not in file:
             df = pd.read_csv('data/preloads/' + file)
+            df['time'] = pd.to_datetime(df['time'], errors='coerce')
             if is_filter:
                 df = filter_close(df)
 
             # Categorize hours and calculate close change
-            df['hour'] = df['time'].dt.hour
+            df['hour'] = df['time'].dt.hour.astype(float)
             df['close_pct_change'] = df['close'].diff().fillna(0).clip(lower=-10, upper=10)
 
             # Perform feature engineering
-            df, _ = features_engineering(df, backcandles)
+            df, train_cols = features_engineering(df, backcandles)
+
+            # Save df
+            final_df = pd.concat([df, final_df])
+
             new_scaled_df = scale_each_months(df, train_cols)
 
-            final_df = pd.concat([df, final_df])
-            new_scaled_df = pd.DataFrame(new_scaled_df, columns=train_cols + ['close_pct_change'], index=df['time'])
+            new_scaled_df = new_scaled_df[train_cols + ['close_pct_change']]
+            new_scaled_df.index = df['time']
             final_df_scaled = pd.concat([new_scaled_df, final_df_scaled])
-
 
     final_df_scaled = pd.DataFrame(final_df_scaled, columns=train_cols + ['close_pct_change'], index=final_df['time'])
 
     return final_df, final_df_scaled, train_cols
 
-def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit=4000, backcandles=60):
-    df = get_historical_data(symbol, timeframe, start_date, end_date, limit)
+def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, backcandles=60):
+    df = get_historical_data_yf(symbol, timeframe, start_date, end_date)
+
     if is_filter :
         # Filter to keep only open market hours
         df = filter_close(df)
@@ -152,12 +171,7 @@ def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, limit
     print(train_cols)
     
     df_scaled = scale_each_months(df, train_cols)
-    print('right after scaling')
-    print(df_scaled)
     df_scaled = pd.DataFrame(df_scaled, columns=train_cols + ['close_pct_change'], index= df['time'])
-
-    print(df)
-    print(df_scaled)
 
     return df, df_scaled, train_cols
 

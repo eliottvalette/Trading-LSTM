@@ -94,13 +94,12 @@ class EnsemblingModel(nn.Module):
         self.cnn_model = cnn_model
         self.gradboost_model = gradboost_model
 
-        
-
     def forward(self, features):
         device = features.device  # Get the device of the input tensor
 
-        lstm_output = self.lstm_model(features)
-        cnn_output = self.cnn_model(features)
+        # Get the predictions from each model
+        lstm_output = torch.round(self.lstm_model(features))
+        cnn_output = torch.round(self.cnn_model(features))
         
         # Prepare features for GradBOOSTModel and predict
         gradboost_features = features.view(features.size(0), -1).cpu().numpy()
@@ -109,14 +108,13 @@ class EnsemblingModel(nn.Module):
             device=device,
             dtype=torch.float32
         ).unsqueeze(1)
+        gradboost_output = torch.round(gradboost_output)
 
-        weights = [0.3, 0.3, 0.4]
-
-        # Weighted sum of the model outputs
-        ensemble_output = (
-            weights[0] * lstm_output +
-            weights[1] * cnn_output +
-            weights[2] * gradboost_output
-        )
+        # Stack predictions and perform manual majority voting
+        predictions = torch.cat([lstm_output, cnn_output, gradboost_output], dim=1)  # Shape: [batch_size, num_models]
         
-        return ensemble_output
+        # Calculate majority vote by summing up predictions
+        vote_sums = predictions.sum(dim=1)  # Sum of votes along the model axis
+        majority_vote = (vote_sums >= 2).float()  # Majority if 2 or more models predict 1, else 0
+
+        return majority_vote

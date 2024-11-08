@@ -147,7 +147,7 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
         history['lr'].append(optimizer.param_groups[0]['lr'])
         
         # Save the model if it's getting better results
-        if best_loss >= val_epoch_loss :
+        if best_loss >= val_epoch_loss or True:
             print(f"Best Loss Improved ({best_loss} ---> {val_epoch_loss})")
 
             best_loss = val_epoch_loss
