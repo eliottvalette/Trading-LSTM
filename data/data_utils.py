@@ -22,7 +22,7 @@ api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
 def get_historical_data_yf(symbol, timeframe, start_date, end_date, limit=10000):
     try:
         # Fetch data from Yahoo Finance
-        bars = yf.download(tickers=symbol,start=start_date,end=end_date,interval='1h')
+        bars = yf.download(tickers=symbol,start=start_date,end=end_date,interval=timeframe)
 
         # Convert the index to datetime and reset for consistency
         bars['time'] = pd.to_datetime(bars.index)

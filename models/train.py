@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import pandas as pd
 
 
 def plot_confusion_matrix(y_true, y_pred, title, file_title, model_name):
@@ -65,44 +66,43 @@ def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader
     model.eval()
     dataset_size = 0
     running_loss = 0.0
-
-    # Lists to store true and predicted values for metrics
+    
     valid_targets = []
-    valid_predictions = []
+    valid_predictions_probs = []
     
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
-
         features = features.to(device)
         targets = targets.to(device)
-
         batch_size = features.size(0)
 
         with torch.no_grad():
-            predicted_evolution = model(features).squeeze(-1)     
+            predicted_evolution = model(features).squeeze(-1)
 
         # Compute the loss
         loss = criterion(predicted_evolution, targets)
-
         running_loss += loss.item() * batch_size
         dataset_size += batch_size
-
-        valid_targets.extend(targets.cpu().numpy())
-        valid_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > decision_threshold, 1, 0))
-
         epoch_loss = running_loss / dataset_size
+
+        # Append current batch results instead of overwriting
+        valid_targets.extend(targets.cpu().numpy())
+        valid_predictions_probs.extend(predicted_evolution.cpu().detach().numpy())
 
         bar.set_postfix(Epoch=epoch, Valid_Loss=epoch_loss)
 
-    if epoch == 20 :
-        plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title = "valid", model_name = model_name)
+    valid_predictions = np.where(np.array(valid_predictions_probs) > decision_threshold, 1, 0)
 
     # Calculate metrics
     accuracy = accuracy_score(valid_targets, valid_predictions)
 
     print(f"Validation Metrics - Accuracy: {accuracy:.4f}")
 
+    if epoch == 20:
+        plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
+
     return epoch_loss, accuracy
+
 
 def run_training(model, model_name, decision_threshold, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
     # Confirm that it is running on GPU

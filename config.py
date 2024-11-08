@@ -6,7 +6,7 @@ class Config:
     def __init__(self):
         self.symbol = 'AAPL'
         self.backcandles = 30
-        self.timeframe = rest.TimeFrame(1, rest.TimeFrameUnit.Hour)
+        self.timeframe = '1h'
         self.start_date = '2023-01-01'
         self.end_date = '2024-05-01'
         self.test_start_date = self.end_date

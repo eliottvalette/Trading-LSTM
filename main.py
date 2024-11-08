@@ -57,11 +57,11 @@ if __name__ == "__main__":
     lstm_model = LSTMModel(embedding_dim=len(train_cols), 
                            hidden_dim = 128,
                            num_layers = 2, 
-                           dropout_prob = 0.3)
+                           dropout_prob = 0.2)
     lstm_model = lstm_model.to(device)
     
     optimizer_lstm = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
-    scheduler_lstm = lr_scheduler.ReduceLROnPlateau(optimizer_lstm, mode='min', factor=0.1, patience=3)
+    scheduler_lstm = lr_scheduler.ReduceLROnPlateau(optimizer_lstm, mode='min', factor=0.5, patience=5)
 
     # Train the LSTM model
     trained_model_lstm, history_lstm = run_training(
@@ -88,7 +88,7 @@ if __name__ == "__main__":
     cnn_model = cnn_model.to(device)
 
     optimizer_cnn = Adam(cnn_model.parameters(), lr=0.001, weight_decay=1e-5)
-    scheduler_cnn = lr_scheduler.ReduceLROnPlateau(optimizer_cnn, mode='min', factor=0.1, patience=3)
+    scheduler_cnn = lr_scheduler.ReduceLROnPlateau(optimizer_cnn, mode='min', factor=0.5, patience=3)
 
     # Train the CNN model
     trained_model_cnn, history_cnn = run_training(
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     ensembling_model.to(device)
 
     optimizer_ensembling = Adam(cnn_model.parameters(), lr=0.001, weight_decay=1e-5)
-    scheduler_ensembling = lr_scheduler.ReduceLROnPlateau(optimizer_ensembling, mode='min', factor=0.1, patience=3)
+    scheduler_ensembling = lr_scheduler.ReduceLROnPlateau(optimizer_ensembling, mode='min', factor=0.5, patience=3)
 
     # Prepare test data
     test_df, test_dataset_scaled, _ = prepare_data(symbol=config.symbol, 
