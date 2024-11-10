@@ -1,6 +1,6 @@
 from config import Config
 from data.data_utils import prepare_data_from_preloads, prepare_data, create_test_loader, training_loaders
-from models.models import LSTMModel, CNNModel, GradBOOSTModel, EnsemblingModel
+from models.models import LSTMModel, CNNModel, GradBOOSTModel, EnsemblingModel, DirectionalMSELoss
 from models.train import run_training, run_training_LGBM
 from models.evaluate import simulate_investment
 from utils.visualisation import plot_training_metrics
@@ -18,7 +18,7 @@ np.random.seed(seed)
 rd.seed(seed)
 
 def criterion(outputs, targets):
-    loss = nn.MSELoss()(outputs, targets)
+    loss = DirectionalMSELoss(penalty_factor=5.0)(outputs, targets)
     return loss
 
 if __name__ == "__main__":

@@ -107,6 +107,7 @@ class EnsemblingModel(nn.Module):
         self.gradboost_model = gradboost_model
 
         self.decision_threshold = 0.0
+
     def forward(self, features):
         device = features.device  # Get the device of the input tensor
 
@@ -137,3 +138,23 @@ class EnsemblingModel(nn.Module):
         majority_vote = (vote_sums >= 2).float()  # Majority if 2 or more models predict 1, else 0
 
         return majority_vote
+    
+class DirectionalMSELoss(nn.Module):
+    def __init__(self, penalty_factor=2.0):
+        super(DirectionalMSELoss, self).__init__()
+        self.mse = nn.MSELoss()
+        self.penalty_factor = penalty_factor
+
+    def forward(self, predictions, targets):
+        # Calculate standard MSE
+        mse_loss = self.mse(predictions, targets) * 1_000 # Manually increase the loss to make it more significant
+        
+        # Calculate directional mismatch: 1 if direction is wrong, 0 if correct
+        direction_mismatch = (torch.sign(predictions) != torch.sign(targets)).float()
+        
+        # Apply penalty factor to mismatched directions
+        directional_penalty = direction_mismatch * self.penalty_factor
+        
+        # Combine penalized loss
+        penalized_loss = mse_loss * (1 + directional_penalty.mean())
+        return penalized_loss

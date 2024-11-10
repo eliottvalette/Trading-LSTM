@@ -9,6 +9,9 @@ import seaborn as sns
 import numpy as np
 import pandas as pd
 
+from config import Config
+
+config = Config()
 
 def plot_confusion_matrix(y_true, y_pred, title, file_title, model_name):
     cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
@@ -22,6 +25,17 @@ def plot_confusion_matrix(y_true, y_pred, title, file_title, model_name):
     plt.savefig(f'logs/confusion_matrix_{file_title}_{model_name}.png')
     plt.close()
 
+def plot_predicted_evolution(y_true, y_pred, title, file_title, model_name):
+    plt.figure(figsize=(14, 7))
+    plt.plot(y_true, label='True Labels', color='blue')
+    plt.plot(y_pred, label='Predicted Labels', color='red')
+    plt.xlabel('Time')
+    plt.ylabel('Predicted Evolution')
+    plt.title(title)
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f'logs/predicted_evolution_{file_title}_{model_name}.png')
+    plt.close()
 
 def train_one_epoch(model, model_name, decision_threshold, optimizer, criterion, dataloader, epoch, device):
     model.train()
@@ -57,7 +71,7 @@ def train_one_epoch(model, model_name, decision_threshold, optimizer, criterion,
         
         bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)
 
-    if epoch == 20 :
+    if epoch == config.num_epochs  :
         predictions_binary = np.where(np.array(train_predictions) > 0, 1, 0)
         targets_binary = np.where(np.array(train_targets) > 0, 1, 0)
 
@@ -103,8 +117,9 @@ def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader
 
     print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}")
 
-    if epoch == 20:
+    if epoch == config.num_epochs :
         plot_confusion_matrix(targets_binary, valid_predictions_binary, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
+        plot_predicted_evolution(valid_targets, valid_predictions_probs, title="Predicted Evolution", file_title="valid", model_name=model_name)
         
         print(pd.Series(valid_predictions_probs).describe())
 
