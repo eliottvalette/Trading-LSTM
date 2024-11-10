@@ -60,7 +60,7 @@ if __name__ == "__main__":
                            dropout_prob = 0.2)
     lstm_model = lstm_model.to(device)
     
-    optimizer_lstm = Adam(lstm_model.parameters(), lr=0.001, weight_decay=1e-5)
+    optimizer_lstm = Adam(lstm_model.parameters(), lr=0.0001, weight_decay=1e-5)
     scheduler_lstm = lr_scheduler.ReduceLROnPlateau(optimizer_lstm, mode='min', factor=0.5, patience=5)
 
     # Train the LSTM model
@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
     # Plot training metrics
     plot_training_metrics(history_lstm, 'LSTM')
-
+    
     # Initialize the CNN model, optimizer and scheduler
     cnn_model = CNNModel(embedding_dim=len(train_cols), 
                            hidden_dim = 128,
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     
     cnn_model = cnn_model.to(device)
 
-    optimizer_cnn = Adam(cnn_model.parameters(), lr=0.001, weight_decay=1e-5)
+    optimizer_cnn = Adam(cnn_model.parameters(), lr=0.0001, weight_decay=1e-5)
     scheduler_cnn = lr_scheduler.ReduceLROnPlateau(optimizer_cnn, mode='min', factor=0.5, patience=3)
 
     # Train the CNN model
@@ -150,7 +150,6 @@ if __name__ == "__main__":
     trade_decision_threshold = 0.02
     simulate_investment(model = ensembling_model, 
             dataloader = test_loader, 
-            dataframe = test_df,
             capital = config.initial_capital, 
             shares_owned = config.shares_owned, 
             test_df = test_df,

@@ -77,7 +77,7 @@ def plot_confusion_matrix(predicted_orders, best_orders, title, model_name):
     plt.title('Confusion Matrix')
     plt.savefig(f'logs/{model_name}_confusion_matrix_evaluate_{title}.png')
 
-def simulate_investment(model, dataloader, dataframe, capital, shares_owned, test_df, backcandles, train_cols, decision_threshold, trade_decision_threshold, device, model_name, trade_allocation = 0.1):
+def simulate_investment(model, dataloader, capital, shares_owned, test_df, backcandles, train_cols, decision_threshold, trade_decision_threshold, device, model_name, trade_allocation = 0.1):
     model.lstm_model.eval()
     model.cnn_model.eval()
 
@@ -104,8 +104,8 @@ def simulate_investment(model, dataloader, dataframe, capital, shares_owned, tes
         timestamps.append(test_df.iloc[step + backcandles, 0])
 
         # Get the current price from the dataframe
-        current_price_index = train_cols.index('close')
-        current_price = dataframe.iloc[step + backcandles, current_price_index]
+        current_price_index = 0
+        current_price = test_df.iloc[step + backcandles, current_price_index]
 
         # Predicted and true prices in normalized form
         order_prediction = model(features).cpu().detach().numpy().flatten()

@@ -18,17 +18,25 @@ class LSTMModel(nn.Module):
         self.dropout_lstm = nn.Dropout(p = dropout_prob)
         self.fc2_lstm = nn.Linear(64, 1)
 
+        self.bn_lstm = nn.BatchNorm1d(hidden_dim)
+
         self.Leakyrelu = nn.LeakyReLU()
         self.sigmoid = nn.Sigmoid()
 
 
     def forward(self, features):
-        # LSTM Part :
+        # LSTM Part:
         lstm_out, _ = self.lstm(features)
-        tag_space = self.Leakyrelu(self.fc1_lstm(lstm_out[:, -1, :]))
+        last_hidden = lstm_out[:, -1, :]  # Extract the last output in the sequence
+
+        # Apply BatchNorm1d to the last hidden state
+        last_hidden = self.bn_lstm(last_hidden)
+
+        # Fully connected layers
+        tag_space = self.Leakyrelu(self.fc1_lstm(last_hidden))
         tag_space = self.fc2_lstm(tag_space)
-        
-        # Final output :
+
+        # Final output:
         output = self.sigmoid(tag_space)
         return output
 
@@ -39,9 +47,13 @@ class CNNModel(nn.Module):
         self.num_layers = num_layers
 
         self.conv1 = nn.Conv1d(in_channels=embedding_dim, out_channels=embedding_dim * 2, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm1d(embedding_dim * 2)  # Add BatchNorm1d here
         self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+
         self.conv2 = nn.Conv1d(in_channels=embedding_dim * 2, out_channels=embedding_dim * 4, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm1d(embedding_dim * 4)  # Add BatchNorm1d here
         self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+
         self.fc1_cnn = nn.Linear(embedding_dim * 4, 16)
         self.dropout_cnn = nn.Dropout(p = dropout_prob)
         self.fc2_cnn = nn.Linear(16, 1)
@@ -53,9 +65,13 @@ class CNNModel(nn.Module):
     def forward(self, features):
         # CNN Part :
         cnn_out = self.conv1(features.permute(0, 2, 1))
+        cnn_out = self.bn1(cnn_out)  # Apply BatchNorm1d after convolution
         cnn_out = self.pool1(cnn_out)
+
         cnn_out = self.conv2(cnn_out)
+        cnn_out = self.bn2(cnn_out)  # Apply BatchNorm1d after convolution
         cnn_out = self.pool2(cnn_out)
+
         cnn_out = cnn_out.permute(0, 2, 1)
         cnn_out, _ = torch.max(cnn_out, dim=1)
         cnn_out = self.Leakyrelu(self.fc1_cnn(cnn_out))

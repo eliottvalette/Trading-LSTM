@@ -3,7 +3,8 @@ import time
 from tqdm import tqdm
 from collections import defaultdict
 import torch
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
+from utils.helpers import find_best_threshold
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -92,30 +93,35 @@ def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader
         bar.set_postfix(Epoch=epoch, Valid_Loss=epoch_loss)
 
     valid_predictions = np.where(np.array(valid_predictions_probs) > decision_threshold, 1, 0)
-
-    # Calculate metrics
+    
+    # Calculate F1 score and accuracy
+    f1 = f1_score(valid_targets, valid_predictions)
     accuracy = accuracy_score(valid_targets, valid_predictions)
 
-    print(f"Validation Metrics - Accuracy: {accuracy:.4f}")
+    print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}")
 
     if epoch == 20:
         plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
+        
+        print(pd.Series(valid_predictions_probs).describe())
 
-    return epoch_loss, accuracy
+        best_threshold, best_f1 = find_best_threshold(valid_targets, valid_predictions_probs) 
+        print("best_threshold: ", best_threshold)
+        print("best_f1: ", best_f1)    
+
+    return epoch_loss, accuracy, f1
 
 
 def run_training(model, model_name, decision_threshold, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
-    # Confirm that it is running on GPU
     if torch.cuda.is_available():
         print("[INFO] Using GPU: {}\n".format(torch.cuda.get_device_name()))
+
+    print(f'Training the model with {model_name} architecture')
     
     start = time.time()
-    
-    # Deep copies the initial model weights to save the best model later
     best_model_wts = copy.deepcopy(model.state_dict())
     
-    best_loss = 30
-    
+    best_f1 = 0  # Initialize the best F1 score
     history = defaultdict(list)
     
     for epoch in range(1, num_epochs + 1): 
@@ -131,32 +137,32 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
                                            dataloader = train_loader,
                                            epoch = epoch,
                                            device = device)
-        # Valid for one epoch
-        val_epoch_loss, val_accuracy= valid_one_epoch(model = model,
-                                         model_name = model_name,
-                                         decision_threshold = decision_threshold,
-                                         criterion = criterion, 
-                                         dataloader = valid_loader,
-                                         epoch = epoch,
-                                         device = device)
+        # Validate for one epoch
+        val_epoch_loss, val_accuracy, val_f1 = valid_one_epoch(model = model,
+                                                               model_name = model_name,
+                                                               decision_threshold = decision_threshold,
+                                                               criterion = criterion, 
+                                                               dataloader = valid_loader,
+                                                               epoch = epoch,
+                                                               device = device)
         
-        # Save the metrics in the history dictionary
+        # Save metrics in history
         history['Train Loss'].append(train_epoch_loss)
         history['Valid Loss'].append(val_epoch_loss)
         history['Accuracy'].append(val_accuracy)
+        history['F1 Score'].append(val_f1)
         history['lr'].append(optimizer.param_groups[0]['lr'])
         
-        # Save the model if it's getting better results
-        if best_loss >= val_epoch_loss or True:
-            print(f"Best Loss Improved ({best_loss} ---> {val_epoch_loss})")
+        # Save the model based on the F1 Score improvement
+        if best_f1 <= val_f1:  # Compare current F1 score with best F1 score
+            print(f"Best F1 Score Improved ({best_f1} ---> {val_f1})")
 
-            best_loss = val_epoch_loss
+            best_f1 = val_f1
             best_model_wts = copy.deepcopy(model.state_dict())
 
-            # Save the model based on Loss Score improvement
-            PATH = f"saved_weights/LSTM_Loss_{val_epoch_loss:.4f}_epoch{epoch}.bin"
+            # Save the model based on F1 Score improvement
+            PATH = f"saved_weights/LSTM_F1_{val_f1:.4f}_epoch{epoch}.bin"
             torch.save(model.state_dict(), PATH)
-
             print("Model Saved")
 
         print()
@@ -164,17 +170,15 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
         scheduler.step(val_epoch_loss)
     
     end = time.time()
-    
-    # Display the training time
-    time_elapsed = end - start # in seconds
+    time_elapsed = end - start
     print('Training complete in {:.0f}h {:.0f}m {:.0f}s'.format(
         time_elapsed // 3600 , (time_elapsed % 3600) // 60, (time_elapsed % 3600) % 60))
-    print("Best Loss: {:.6f}".format(best_loss))
+    print("Best F1 Score: {:.4f}".format(best_f1))
 
-    FINAL_PATH = f"saved_weights/Best_LSTM_Loss_{val_epoch_loss:.8f}.bin"
+    FINAL_PATH = f"saved_weights/Best_LSTM_F1_{best_f1:.4f}.bin"
     torch.save(model.state_dict(), FINAL_PATH)
     
-    # load best model weights
+    # Load best model weights
     model.load_state_dict(best_model_wts)
     
     return model, history
