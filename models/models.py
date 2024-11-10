@@ -18,7 +18,7 @@ class LSTMModel(nn.Module):
         self.dropout_lstm = nn.Dropout(p = dropout_prob)
         self.fc2_lstm = nn.Linear(64, 1)
 
-        self.bn_lstm = nn.BatchNorm1d(hidden_dim)
+        self.bn_lstm = nn.LayerNorm(hidden_dim)
 
         self.Leakyrelu = nn.LeakyReLU()
         self.sigmoid = nn.Sigmoid()
@@ -29,8 +29,9 @@ class LSTMModel(nn.Module):
         lstm_out, _ = self.lstm(features)
         last_hidden = lstm_out[:, -1, :]  # Extract the last output in the sequence
 
-        # Apply BatchNorm1d to the last hidden state
-        last_hidden = self.bn_lstm(last_hidden)
+        # Apply BatchNorm1d only if batch size is greater than 1
+        if last_hidden.size(0) > 1:
+            last_hidden = self.bn_lstm(last_hidden)
 
         # Fully connected layers
         tag_space = self.Leakyrelu(self.fc1_lstm(last_hidden))

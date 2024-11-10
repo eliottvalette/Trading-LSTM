@@ -104,7 +104,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
         timestamps.append(test_df.iloc[step + backcandles, 0])
 
         # Get the current price from the dataframe
-        current_price_index = 0
+        current_price_index = 1
         current_price = test_df.iloc[step + backcandles, current_price_index]
 
         # Predicted and true prices in normalized form
