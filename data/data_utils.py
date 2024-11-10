@@ -21,6 +21,16 @@ BASE_URL = 'https://paper-api.alpaca.markets'
 
 api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
     
+def get_historical_data_alpaca(symbol, timeframe, start_date, end_date, limit=10000):
+    # Fetch data from Alpaca
+    try:
+        bars = api.get_bars(symbol, timeframe, start=start_date, end=end_date, limit=limit).df
+        bars['time'] = pd.to_datetime(bars.index)
+        return bars[['time', 'open', 'high', 'low', 'close', 'volume']]
+    except Exception as e:
+        print(f"Error while fetching historical data: {e}")
+        return None
+    
 def get_historical_data_yf(symbol, timeframe, start_date, end_date, limit=10000):
     try:
         # Fetch data from Yahoo Finance
