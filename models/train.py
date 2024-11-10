@@ -185,8 +185,8 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
     return model, history
 
 def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid_loader, num_epochs, device):
-    print()
-    print(f"Running training for LGBM model")
+    print(f"\nRunning training for LGBM model")
+
     history = defaultdict(list)
     
     # Collect training data
@@ -195,7 +195,7 @@ def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid
         # Reshape features to 2D: [Batch, Channels * Sequence_length]
         reshaped_features = features.view(features.size(0), -1).cpu().numpy()
         train_features.append(reshaped_features)
-        train_targets.extend(targets.cpu().numpy())
+        train_targets.extend((targets.cpu().numpy() > 0).astype(int))
     
     # Fit the LGBM model on aggregated training data
     train_features = np.concatenate(train_features, axis=0)
@@ -207,17 +207,16 @@ def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid
     for features, targets in valid_loader:
         reshaped_features = features.view(features.size(0), -1).cpu().numpy()
         valid_features.append(reshaped_features)
-        valid_targets.extend(targets.cpu().numpy())
+        valid_targets.extend((targets.cpu().numpy() > 0).astype(int))
     
     # Predict using the LGBM model on validation set
     valid_features = np.concatenate(valid_features, axis=0)
     valid_predictions = model.predict(valid_features)
     
-    # Calculate metrics
-    accuracy = accuracy_score(valid_targets, valid_predictions)    
-    print(f"Validation Metrics - Accuracy: {accuracy:.4f}")
+    accuracy = accuracy_score(valid_targets, valid_predictions)
+    f1 = f1_score(valid_targets, valid_predictions)
+    print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}")
 
-    plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title = "valid", model_name = model_name)        
-
-        
+    plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
+    
     return model, history

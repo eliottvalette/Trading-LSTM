@@ -35,10 +35,8 @@ class LSTMModel(nn.Module):
 
         # Fully connected layers
         tag_space = self.Leakyrelu(self.fc1_lstm(last_hidden))
-        tag_space = self.fc2_lstm(tag_space)
+        output = self.fc2_lstm(tag_space)
 
-        # Final output:
-        output = self.sigmoid(tag_space)
         return output
 
 class CNNModel(nn.Module):
@@ -62,7 +60,6 @@ class CNNModel(nn.Module):
         self.Leakyrelu = nn.LeakyReLU()
         self.sigmoid = nn.Sigmoid()
 
-
     def forward(self, features):
         # CNN Part :
         cnn_out = self.conv1(features.permute(0, 2, 1))
@@ -76,10 +73,8 @@ class CNNModel(nn.Module):
         cnn_out = cnn_out.permute(0, 2, 1)
         cnn_out, _ = torch.max(cnn_out, dim=1)
         cnn_out = self.Leakyrelu(self.fc1_cnn(cnn_out))
-        cnn_out = self.fc2_cnn(cnn_out)
+        output = self.fc2_cnn(cnn_out)
 
-        # Final output :
-        output = self.sigmoid(cnn_out)
         return output
     
 class GradBOOSTModel:
@@ -111,12 +106,17 @@ class EnsemblingModel(nn.Module):
         self.cnn_model = cnn_model
         self.gradboost_model = gradboost_model
 
+        self.decision_threshold = 0.0
     def forward(self, features):
         device = features.device  # Get the device of the input tensor
 
-        # Get the predictions from each model
-        lstm_output = torch.round(self.lstm_model(features))
-        cnn_output = torch.round(self.cnn_model(features))
+        # Get the predictions from each model and apply decision threshold
+        lstm_output = self.lstm_model(features)
+        cnn_output = self.cnn_model(features)
+
+        # Convert LSTM and CNN predictions from `pct_change` to binary labels
+        lstm_prediction = (lstm_output > self.decision_threshold).float()
+        cnn_prediction = (cnn_output > self.decision_threshold).float()
         
         # Prepare features for GradBOOSTModel and predict
         gradboost_features = features.view(features.size(0), -1).cpu().numpy()
@@ -125,10 +125,12 @@ class EnsemblingModel(nn.Module):
             device=device,
             dtype=torch.float32
         ).unsqueeze(1)
-        gradboost_output = torch.round(gradboost_output)
+        
+        # Convert GradBOOST output to binary by rounding
+        gradboost_prediction = torch.round(gradboost_output)
 
         # Stack predictions and perform manual majority voting
-        predictions = torch.cat([lstm_output, cnn_output, gradboost_output], dim=1)  # Shape: [batch_size, num_models]
+        predictions = torch.cat([lstm_prediction, cnn_prediction, gradboost_prediction], dim=1)  # Shape: [batch_size, num_models]
         
         # Calculate majority vote by summing up predictions
         vote_sums = predictions.sum(dim=1)  # Sum of votes along the model axis
