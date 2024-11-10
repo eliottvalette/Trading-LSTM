@@ -83,9 +83,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
 
     raw_predictions = []
     predicted_orders = []
-    predicted_mitigated_orders = []
     best_orders = []
-    best_mitigated_orders = []
     
     current_prices = []
     portfolio_values = []
@@ -109,13 +107,12 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
 
         # Predicted and true prices in normalized form
         order_prediction = model(features).cpu().detach().numpy().flatten()
-        BHS_pred = 1 if order_prediction > decision_threshold else 0
-        BHS_mitigated_pred = 1 if order_prediction > decision_threshold + trade_decision_threshold else 0 if order_prediction < decision_threshold - trade_decision_threshold else -1
+        BHS_pred = order_prediction
 
         true_best_order = targets.cpu().numpy().flatten()
 
         # Simulate investment based on model prediction
-        if BHS_mitigated_pred == 1 and capital >= current_price :
+        if BHS_pred == 1 and capital >= current_price :
             # Calculate position size based on trade allocation
             investment_amount = capital * trade_allocation
             nb_share_affordable = int(investment_amount // current_price)
@@ -127,7 +124,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
                 buy_sell_annotations.append(['Buy', portfolio_value_temp, current_price, timestamps[-1]])
                 # print(f"Bought {nb_share_affordable} shares at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On: {timestamps[-1]}")
 
-        elif BHS_mitigated_pred == 0 and shares_owned > 0:
+        elif BHS_pred == 0 and shares_owned > 0:
             # Sell all shares
             total_revenue = shares_owned * current_price * (1 - commission)
             capital += total_revenue
@@ -147,10 +144,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
         predicted_orders.append(BHS_pred)
         best_orders.append(true_best_order)
 
-        if BHS_mitigated_pred != -1:
-            predicted_mitigated_orders.append(BHS_mitigated_pred)
-            best_mitigated_orders.append(true_best_order)
-
     # Convert timestamps to a datetime format
     timestamps = pd.to_datetime(timestamps)
 
@@ -169,7 +162,5 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
     plot_portfolio_value(timestamps, portfolio_values, buy_sell_annotations_df, model_name=model_name)
     plot_actual_stock_price(timestamps, current_prices, buy_sell_annotations_df, model_name=model_name)
     plot_confusion_matrix(predicted_orders, best_orders, 'Global', model_name=model_name)
-    if len(best_mitigated_orders) > 0 :
-        plot_confusion_matrix(predicted_mitigated_orders, best_mitigated_orders, 'Mitigated', model_name=model_name)
-
+    
     print(buy_sell_annotations_df)

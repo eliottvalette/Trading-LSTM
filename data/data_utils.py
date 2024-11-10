@@ -141,8 +141,8 @@ def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_thr
         X.append(window)
         y.append(y_dataset[i - 1])  # Ensure each label aligns with the end of its window
 
-    X = np.array(X)
-    y = label_data(y, buy_threshold, sell_threshold)  # Generate labels based on aligned `y`
+    X = np.array(X) # Match now [batch_size, seq_len, num_feat]
+    y = np.array(y)
 
     # Split data into training and validation datasets
     train_size = max(int(len(X) * train_ratio), len(X) - 2176)
@@ -163,12 +163,12 @@ def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_t
 
     # Create sliding window feature set
     X, y = [], []
-    for i in range(backcandles, len(X_dataset) - 1):
-        window = [X_dataset.iloc[i-backcandles:i, j].values for j in range(X_dataset.shape[1])]
-        X.append(np.array(window))
-    X = np.array(X).transpose(0, 2, 1)
-    
-    y = label_data(y_dataset[backcandles :-1], buy_threshold, sell_threshold)
+    for i in range(backcandles, len(X_dataset) - 1):  # Adjust to len(X_dataset) - 1 to prevent index out of bounds
+        window = X_dataset.iloc[i - backcandles : i].values
+        X.append(window)
+        y.append(y_dataset[i - 1])  # Ensure each label aligns with the end of its window
+
+    X = np.array(X) # Match now [batch_size, seq_len, num_feat]
     y = np.array(y)
 
     print('target descritpion :', dataframe['target'].describe())

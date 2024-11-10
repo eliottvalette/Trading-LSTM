@@ -92,20 +92,21 @@ def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader
 
         bar.set_postfix(Epoch=epoch, Valid_Loss=epoch_loss)
 
-    valid_predictions = np.where(np.array(valid_predictions_probs) > decision_threshold, 1, 0)
+    valid_predictions_binary = np.where(np.array(valid_predictions_probs) > 0, 1, 0)
+    targets_binary = np.where(np.array(valid_targets) > 0, 1, 0)
     
     # Calculate F1 score and accuracy
-    f1 = f1_score(valid_targets, valid_predictions)
-    accuracy = accuracy_score(valid_targets, valid_predictions)
+    f1 = f1_score(targets_binary, valid_predictions_binary)
+    accuracy = accuracy_score(targets_binary, valid_predictions_binary)
 
     print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}")
 
-    if epoch == 20:
-        plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
+    if epoch == 4:
+        plot_confusion_matrix(targets_binary, valid_predictions_binary, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
         
         print(pd.Series(valid_predictions_probs).describe())
 
-        best_threshold, best_f1 = find_best_threshold(valid_targets, valid_predictions_probs) 
+        best_threshold, best_f1 = find_best_threshold(targets_binary, valid_predictions_binary) 
         print("best_threshold: ", best_threshold)
         print("best_f1: ", best_f1)    
 

@@ -24,7 +24,7 @@ class LSTMModel(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
 
-    def forward(self, features):
+    def forward(self, features):        
         # LSTM Part:
         lstm_out, _ = self.lstm(features)
         last_hidden = lstm_out[:, -1, :]  # Extract the last output in the sequence

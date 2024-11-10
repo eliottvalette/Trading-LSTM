@@ -18,7 +18,7 @@ np.random.seed(seed)
 rd.seed(seed)
 
 def criterion(outputs, targets):
-    loss = nn.BCELoss()(outputs, targets)
+    loss = nn.MSELoss()(outputs, targets)
     return loss
 
 if __name__ == "__main__":
