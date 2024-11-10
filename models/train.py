@@ -53,12 +53,15 @@ def train_one_epoch(model, model_name, decision_threshold, optimizer, criterion,
         epoch_loss = running_loss / dataset_size
 
         train_targets.extend(targets.cpu().numpy())
-        train_predictions.extend(np.where(predicted_evolution.cpu().detach().numpy() > decision_threshold, 1, 0))
+        train_predictions.extend(predicted_evolution.cpu().detach().numpy())
         
         bar.set_postfix(Epoch=epoch, Train_Loss=epoch_loss)
 
     if epoch == 20 :
-        plot_confusion_matrix(train_targets, train_predictions, title="Training Set Confusion Matrix", file_title = "train", model_name = model_name)
+        predictions_binary = np.where(np.array(train_predictions) > 0, 1, 0)
+        targets_binary = np.where(np.array(train_targets) > 0, 1, 0)
+
+        plot_confusion_matrix(targets_binary, predictions_binary, title="Training Set Confusion Matrix", file_title = "train", model_name = model_name)
 
     return epoch_loss
 
