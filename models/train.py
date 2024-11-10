@@ -4,7 +4,6 @@ from tqdm import tqdm
 from collections import defaultdict
 import torch
 from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
-from utils.helpers import find_best_threshold
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
@@ -101,14 +100,10 @@ def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader
 
     print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}")
 
-    if epoch == 4:
+    if epoch == 20:
         plot_confusion_matrix(targets_binary, valid_predictions_binary, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
         
         print(pd.Series(valid_predictions_probs).describe())
-
-        best_threshold, best_f1 = find_best_threshold(targets_binary, valid_predictions_binary) 
-        print("best_threshold: ", best_threshold)
-        print("best_f1: ", best_f1)    
 
     return epoch_loss, accuracy, f1
 
@@ -218,5 +213,5 @@ def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid
     print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}")
 
     plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
-    
+
     return model, history

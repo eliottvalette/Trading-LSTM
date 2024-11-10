@@ -64,12 +64,6 @@ def filter_close(df):
     
     return filtered_df
 
-def label_data(y, buy_threshold, sell_threshold):
-    labels = []
-    for change in y:
-        labels.append( 1 if change > 0 else 0 )
-    return labels
-
 def prepare_data_from_preloads(final_symbol, timeframe, is_filter, backcandles=60):
     final_df, final_df_scaled = None, None
     # Convert timeframe
@@ -172,7 +166,6 @@ def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_t
     y = np.array(y)
 
     print('target descritpion :', dataframe['target'].describe())
-    print('buy_sell_label :', np.unique(y, return_counts=True))
 
     test_dataset = TensorDataset(torch.tensor(X, dtype=torch.float32), torch.tensor(y, dtype=torch.float32))
     return DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=4)

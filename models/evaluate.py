@@ -81,7 +81,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
     model.lstm_model.eval()
     model.cnn_model.eval()
 
-    raw_predictions = []
     predicted_orders = []
     best_orders = []
     
@@ -109,7 +108,7 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
         order_prediction = model(features).cpu().detach().numpy().flatten()
         BHS_pred = order_prediction
 
-        true_best_order = targets.cpu().numpy().flatten()
+        true_best_order = 1 if targets.cpu().numpy().flatten() > 0 else 0
 
         # Simulate investment based on model prediction
         if BHS_pred == 1 and capital >= current_price :
@@ -140,7 +139,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
         current_prices.append(current_price)
 
         # Store predicted and true orders
-        raw_predictions.append(order_prediction)
         predicted_orders.append(BHS_pred)
         best_orders.append(true_best_order)
 
@@ -150,9 +148,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
     # Final Portfolio Summary
     print("Final Portfolio Value: {:.2f}".format(portfolio_values[-1]))
     print("Augmentation of the portfolio: {:.2%}".format((portfolio_values[-1] - initial_capital) / initial_capital))
-
-    raw_predictions_df = pd.DataFrame(raw_predictions, columns=['raw_prediction'])
-    print('raw_predictions description :\n', raw_predictions_df.describe())
 
     buy_sell_annotations_df = pd.DataFrame(buy_sell_annotations, columns=['Action', 'Portfolio', 'Price', 'Timestamp'])
     buy_sell_annotations_df['Timestamp'] = pd.to_datetime(buy_sell_annotations_df['Timestamp'])
