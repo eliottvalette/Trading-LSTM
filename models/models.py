@@ -105,6 +105,9 @@ class GradBOOSTModel:
     def save(self, path):
         self.lgbm_model.booster_.save_model(path)
         
+    def load(self, path):
+        self.lgbm_model = lgb.Booster(model_file=path)
+        
 class EnsemblingModel(nn.Module):
     def __init__(self, lstm_model, cnn_model, gradboost_model):
         super(EnsemblingModel, self).__init__()

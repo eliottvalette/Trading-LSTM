@@ -120,7 +120,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
                 price_difference = (current_price - price_when_invested) / price_when_invested
                 revenue_generated = investment_amount * (1 + price_difference)
                 capital += revenue_generated
-                buy_sell_annotations.append(['Sell', capital, current_price, timestamps[-1]])
                 print(f"Closed Sell at {current_price:.2f}, Capital: {capital:.2f}, On: {timestamps[-1]}")
 
             # Buy using trade allocation of current capital
@@ -136,7 +135,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
                 price_difference = (current_price - price_when_invested) / price_when_invested
                 revenue_generated = investment_amount * (1 + price_difference)
                 capital += revenue_generated
-                buy_sell_annotations.append(['Sell', capital, current_price, timestamps[-1]])
                 print(f"Closed Buy at {current_price:.2f}, Capital: {capital:.2f}, On: {timestamps[-1]}")
 
             # Sell using trade allocation of current capital

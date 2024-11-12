@@ -12,9 +12,9 @@ class Config:
     def __init__(self):
         self.symbol = 'AAPL'
         self.backcandles = 30
-        self.timeframe = rest.TimeFrame.Hour
-        self.start_date = one_year_ago
-        self.end_date = two_month_ago
+        self.timeframe = rest.TimeFrame.Minute
+        self.start_date = two_month_ago
+        self.end_date = three_days_ago
         self.test_start_date = self.end_date
         self.test_end_date = previous_day
         self.initial_capital = 10_000
@@ -22,4 +22,4 @@ class Config:
         self.num_epochs = 4
         self.buy_threshold = 0.002
         self.sell_threshold = -0.002
-        self.use_preloads = True
+        self.use_preloads = False

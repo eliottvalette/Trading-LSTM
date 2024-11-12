@@ -5,6 +5,14 @@ from dotenv import load_dotenv
 import alpaca_trade_api as tradeapi
 import alpaca_trade_api.rest as rest
 from pytz import timezone
+from models.models import LSTMModel, CNNModel, GradBOOSTModel, EnsemblingModel, DirectionalMSELoss
+from torch.utils.data import TensorDataset, DataLoader
+from data.features_engineering import features_engineering
+from config import Config
+import torch
+import numpy as np
+import time
+
 
 # Load environment variables
 load_dotenv()
@@ -18,10 +26,35 @@ api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
 # Set timezone to Eastern Time (US markets)
 us_eastern = timezone('America/New_York')
 
-def get_intraday_data(symbol, timeframe, lookback_hours):
+device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+print("Using device : ", device)
+
+# Set up constants and configurations
+config = Config()
+
+def load_ensemble_model(lstm_path, cnn_path, gradboost_path, embedding_dim, hidden_dim, num_layers, dropout_prob, num_leaves, max_depth, learning_rate, n_estimators):
+    lstm_model = LSTMModel(embedding_dim=embedding_dim, hidden_dim=hidden_dim, num_layers=num_layers, dropout_prob=dropout_prob)
+    cnn_model = CNNModel(embedding_dim=embedding_dim, dropout_prob=dropout_prob)
+    
+    # Use weights_only=True to mitigate warning and security risk
+    lstm_model.load_state_dict(torch.load(lstm_path, weights_only=True))
+    cnn_model.load_state_dict(torch.load(cnn_path, weights_only=True))
+
+    # Move models to device
+    lstm_model = lstm_model.to(device)
+    cnn_model = cnn_model.to(device)
+
+    # Load GradBOOST model
+    gradboost_model = GradBOOSTModel(num_leaves, max_depth, learning_rate, n_estimators)
+    gradboost_model.load(gradboost_path)
+
+    return lstm_model, cnn_model, gradboost_model
+
+
+def get_intraday_data(symbol, timeframe, lookback):
     # Calculate start time in US Eastern Time
     print("Current time in US Eastern Time is: ", datetime.now(us_eastern))
-    start_time = (datetime.now(us_eastern) - timedelta(hours=lookback_hours)).strftime('%Y-%m-%d')
+    start_time = (datetime.now(us_eastern) - timedelta(hours=lookback * 3)).strftime('%Y-%m-%d')
     
     print(f"Fetching data from {start_time} in US Eastern Time to the latest available")
 
@@ -34,12 +67,97 @@ def get_intraday_data(symbol, timeframe, lookback_hours):
         bars['time'] = bars.index
         
         # Return only relevant columns
-        return bars[['time', 'open', 'high', 'low', 'close', 'volume']]
+        return bars[['time', 'open', 'high', 'low', 'close', 'volume']][-30:] # keep last 30 rows
     except Exception as e:
         print(f"Error while fetching historical data: {e}")
         return None
 
-# Example usage
-timeframe = rest.TimeFrame.Minute
-intraday_data = get_intraday_data(symbol="AAPL", timeframe=timeframe, lookback_hours=30)
-print(intraday_data)
+# Function to predict action based on the model and Alpaca’s 15-minute delayed data
+def predict_action(data, model):
+    prediction = model.predict(data)
+    return prediction
+
+# Function to confirm trade based on real-time last price before executing
+def auto_trade(symbol, model, trade_allocation, lookback, previous_action):
+    timeframe = rest.TimeFrame.Minute
+
+    # Get delayed data for the model to analyze
+    data = get_intraday_data(symbol, timeframe, lookback)
+    data_df, train_cols = features_engineering(data, lookback)
+
+    data_df_scaled = data_df[train_cols]
+
+    data_list = []
+    data_list.append(data_df_scaled.iloc[0 : 30].values)
+    data_list = np.array(data_list)
+    data_dataset = TensorDataset(torch.tensor(data_list, dtype=torch.float32))
+    data_loader = DataLoader(data_dataset, batch_size=1, shuffle=False)
+    
+    for features in data_loader :
+        features = features[0].to(device)  # Access the tensor inside the list and move it to the device
+        action = model(features).cpu().detach().numpy().flatten()[0]
+
+        # Determine the amount to trade based on trade_allocation and current capital
+        account = api.get_account()
+        capital = float(account.buying_power)
+        trade_amount = capital * trade_allocation
+
+        # Example decision logic based on prediction and latest price
+        if action == 1 and previous_action != 1:
+            print(f"Buying ${trade_amount:.2f} of {symbol}")
+            # Cancel selling order
+            api.cancel_all_orders()
+
+            # Place buy order with notional amount
+            api.submit_order(
+                symbol=symbol,
+                notional=trade_amount,  # Use dollar amount instead of qty
+                side='buy',
+                type='market',
+                time_in_force='gtc'
+            )
+
+        elif action == 0 and previous_action != 0:
+            print(f"Selling ${trade_amount:.2f} of {symbol}")
+            # Cancel buying order
+            api.cancel_all_orders(symbol=symbol)
+
+            # Place sell order with notional amount
+            api.submit_order(
+                symbol=symbol,
+                notional=trade_amount,  # Use dollar amount instead of qty
+                side='sell',
+                type='market',
+                time_in_force='gtc'
+            )
+
+
+# Load individual models
+lstm_model, cnn_model, gradboost_model = load_ensemble_model(
+    lstm_path="saved_weights/Best_LSTM_F1_0.6813.pth",
+    cnn_path="saved_weights/Best_CNN_F1_0.4095.pth",
+    gradboost_path="saved_weights/LGBM_F1_0.5720.txt",
+    embedding_dim=13,
+    hidden_dim=128,
+    num_layers=3, 
+    dropout_prob=0.2,
+    num_leaves=256, 
+    max_depth=5, 
+    learning_rate=0.05, 
+    n_estimators=1000
+)
+
+# Initialize the ensemble
+ensemble_model = EnsemblingModel(lstm_model, cnn_model, gradboost_model)
+ensemble_model.to(device)
+
+past_time = ''
+previous_action = -1
+while True :
+    current_time = datetime.now(us_eastern).strftime('%Y-%m-%d %H %M')
+    if past_time != current_time :
+        past_time = current_time
+        auto_trade(symbol="AAPL", model=ensemble_model, trade_allocation=0.01, lookback = 30, previous_action = previous_action)
+        print("Trade Executed")
+    
+    time.sleep(2)

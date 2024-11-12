@@ -173,7 +173,7 @@ def run_training(model, model_name, train_loader, valid_loader, optimizer, sched
             best_model_wts = copy.deepcopy(model.state_dict())
 
             # Save the model based on F1 Score improvement
-            PATH = f"saved_weights/{model_name}_F1_{val_f1:.4f}_epoch{epoch}.bin"
+            PATH = f"saved_weights/{model_name}_F1_{val_f1:.4f}_epoch{epoch}.txt"
             # torch.save(model.state_dict(), PATH)
             print("Model Saved")
 
@@ -187,7 +187,7 @@ def run_training(model, model_name, train_loader, valid_loader, optimizer, sched
         time_elapsed // 3600 , (time_elapsed % 3600) // 60, (time_elapsed % 3600) % 60))
     print("Best F1 Score: {:.4f}".format(best_f1))
 
-    FINAL_PATH = f"saved_weights/Best_{model_name}_F1_{best_f1:.4f}.bin"
+    FINAL_PATH = f"saved_weights/Best_{model_name}_F1_{best_f1:.4f}.pth"
     torch.save(model.state_dict(), FINAL_PATH)
     
     # Load best model weights
@@ -231,7 +231,7 @@ def run_training_LGBM(model, model_name, train_loader, valid_loader, num_epochs,
     plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
 
     # Save the model
-    PATH = f"saved_weights/{model_name}_F1_{f1:.4f}.bin"
+    PATH = f"saved_weights/{model_name}_F1_{f1:.4f}.txt"
     model.save(PATH)
 
     return model, history
