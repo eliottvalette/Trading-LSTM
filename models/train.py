@@ -37,7 +37,7 @@ def plot_predicted_evolution(y_true, y_pred, title, file_title, model_name):
     plt.savefig(f'logs/predicted_evolution_{file_title}_{model_name}.png')
     plt.close()
 
-def train_one_epoch(model, model_name, decision_threshold, optimizer, criterion, dataloader, epoch, device):
+def train_one_epoch(model, model_name, optimizer, criterion, dataloader, epoch, device):
     model.train()
     running_loss = 0.0
     dataset_size = 0
@@ -79,7 +79,7 @@ def train_one_epoch(model, model_name, decision_threshold, optimizer, criterion,
 
     return epoch_loss
 
-def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader, epoch, device):    
+def valid_one_epoch(model, model_name, criterion, dataloader, epoch, device):    
     model.eval()
     dataset_size = 0
     running_loss = 0.0
@@ -126,7 +126,7 @@ def valid_one_epoch(model, model_name, decision_threshold, criterion, dataloader
     return epoch_loss, accuracy, f1
 
 
-def run_training(model, model_name, decision_threshold, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
+def run_training(model, model_name, train_loader, valid_loader, optimizer, scheduler, criterion, num_epochs, device):
     if torch.cuda.is_available():
         print("[INFO] Using GPU: {}\n".format(torch.cuda.get_device_name()))
 
@@ -145,7 +145,6 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
         # Train for one epoch
         train_epoch_loss = train_one_epoch(model = model, 
                                            model_name = model_name,
-                                           decision_threshold = decision_threshold,
                                            optimizer = optimizer, 
                                            criterion = criterion, 
                                            dataloader = train_loader,
@@ -154,7 +153,6 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
         # Validate for one epoch
         val_epoch_loss, val_accuracy, val_f1 = valid_one_epoch(model = model,
                                                                model_name = model_name,
-                                                               decision_threshold = decision_threshold,
                                                                criterion = criterion, 
                                                                dataloader = valid_loader,
                                                                epoch = epoch,
@@ -175,8 +173,8 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
             best_model_wts = copy.deepcopy(model.state_dict())
 
             # Save the model based on F1 Score improvement
-            PATH = f"saved_weights/LSTM_F1_{val_f1:.4f}_epoch{epoch}.bin"
-            torch.save(model.state_dict(), PATH)
+            PATH = f"saved_weights/{model_name}_F1_{val_f1:.4f}_epoch{epoch}.bin"
+            # torch.save(model.state_dict(), PATH)
             print("Model Saved")
 
         print()
@@ -189,7 +187,7 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
         time_elapsed // 3600 , (time_elapsed % 3600) // 60, (time_elapsed % 3600) % 60))
     print("Best F1 Score: {:.4f}".format(best_f1))
 
-    FINAL_PATH = f"saved_weights/Best_LSTM_F1_{best_f1:.4f}.bin"
+    FINAL_PATH = f"saved_weights/Best_{model_name}_F1_{best_f1:.4f}.bin"
     torch.save(model.state_dict(), FINAL_PATH)
     
     # Load best model weights
@@ -197,7 +195,7 @@ def run_training(model, model_name, decision_threshold, train_loader, valid_load
     
     return model, history
 
-def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid_loader, num_epochs, device):
+def run_training_LGBM(model, model_name, train_loader, valid_loader, num_epochs, device):
     print(f"\nRunning training for LGBM model")
 
     history = defaultdict(list)
@@ -231,5 +229,9 @@ def run_training_LGBM(model, model_name, decision_threshold, train_loader, valid
     print(f"Validation Metrics - Accuracy: {accuracy:.4f}, F1 Score: {f1:.4f}")
 
     plot_confusion_matrix(valid_targets, valid_predictions, title="Validation Set Confusion Matrix", file_title="valid", model_name=model_name)
+
+    # Save the model
+    PATH = f"saved_weights/{model_name}_F1_{f1:.4f}.bin"
+    model.save(PATH)
 
     return model, history

@@ -35,23 +35,24 @@ class LSTMModel(nn.Module):
 
         # Fully connected layers
         tag_space = self.Leakyrelu(self.fc1_lstm(last_hidden))
+        tag_space = self.dropout_lstm(tag_space)
         output = self.fc2_lstm(tag_space)
 
         return output
 
 class CNNModel(nn.Module):
-    def __init__(self, embedding_dim, hidden_dim, num_layers=2, dropout_prob=0.2):
+    def __init__(self, embedding_dim, dropout_prob=0.2):
         super(CNNModel, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.num_layers = num_layers
 
         self.conv1 = nn.Conv1d(in_channels=embedding_dim, out_channels=embedding_dim * 2, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm1d(embedding_dim * 2)  # Add BatchNorm1d here
         self.pool1 = nn.MaxPool1d(kernel_size=2, stride=2)
+        self.dropout1 = nn.Dropout(p=dropout_prob)
 
         self.conv2 = nn.Conv1d(in_channels=embedding_dim * 2, out_channels=embedding_dim * 4, kernel_size=3, stride=1, padding=1)
         self.bn2 = nn.BatchNorm1d(embedding_dim * 4)  # Add BatchNorm1d here
         self.pool2 = nn.MaxPool1d(kernel_size=2, stride=2)
+        self.dropout2 = nn.Dropout(p=dropout_prob)
 
         self.fc1_cnn = nn.Linear(embedding_dim * 4, 16)
         self.dropout_cnn = nn.Dropout(p = dropout_prob)
@@ -62,30 +63,32 @@ class CNNModel(nn.Module):
 
     def forward(self, features):
         # CNN Part :
-        cnn_out = self.conv1(features.permute(0, 2, 1))
-        cnn_out = self.bn1(cnn_out)  # Apply BatchNorm1d after convolution
-        cnn_out = self.pool1(cnn_out)
+        cnn_out_1 = self.conv1(features.permute(0, 2, 1))
+        cnn_out_1 = self.bn1(cnn_out_1)  # Apply BatchNorm1d after convolution
+        cnn_out_1 = self.pool1(cnn_out_1)
+        cnn_out_1 = self.dropout1(cnn_out_1)
 
-        cnn_out = self.conv2(cnn_out)
-        cnn_out = self.bn2(cnn_out)  # Apply BatchNorm1d after convolution
-        cnn_out = self.pool2(cnn_out)
+        cnn_out_2 = self.conv2(cnn_out_1)
+        cnn_out_2 = self.bn2(cnn_out_2)  # Apply BatchNorm1d after convolution
+        cnn_out_2 = self.pool2(cnn_out_2)
+        cnn_out_2 = self.dropout2(cnn_out_2)
 
-        cnn_out = cnn_out.permute(0, 2, 1)
-        cnn_out, _ = torch.max(cnn_out, dim=1)
-        cnn_out = self.Leakyrelu(self.fc1_cnn(cnn_out))
-        output = self.fc2_cnn(cnn_out)
+        cnn_out_3 = cnn_out_2.permute(0, 2, 1)
+        cnn_out_3, _ = torch.max(cnn_out_3, dim=1)
+        cnn_out_3 = self.Leakyrelu(self.fc1_cnn(cnn_out_3))
+        cnn_out_3 = self.dropout_cnn(cnn_out_3)
+        output = self.fc2_cnn(cnn_out_3)
 
         return output
     
 class GradBOOSTModel:
-    def __init__(self, num_leaves=128, max_depth=5, learning_rate=0.05, n_estimators=100):
+    def __init__(self, num_leaves, max_depth, learning_rate, n_estimators):
         self.lgbm_model = lgb.LGBMClassifier(
-            num_leaves=128, 
-            max_depth=5, 
-            learning_rate=0.05, 
-            n_estimators=100,
+            num_leaves=num_leaves, 
+            max_depth=max_depth, 
+            learning_rate=learning_rate, 
+            n_estimators=n_estimators,
             objective='binary',
-            n_jobs=-1,
             random_state=42,
             verbosity=-1,
             metric='binary_logloss'
@@ -98,6 +101,9 @@ class GradBOOSTModel:
 
     def predict(self, features):
         return self.lgbm_model.predict(features)
+
+    def save(self, path):
+        self.lgbm_model.booster_.save_model(path)
         
 class EnsemblingModel(nn.Module):
     def __init__(self, lstm_model, cnn_model, gradboost_model):

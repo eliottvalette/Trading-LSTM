@@ -24,13 +24,13 @@ def plot_portfolio_value(timestamps, portfolio_values, annotations_df, model_nam
                               headwidth = 6
                               )
             if action == 'Buy':
-                plt.annotate('', xy=(time, portfolio_value + 9),
-                             xytext=(time, portfolio_value + 10), # to flip the arrow upside down
+                plt.annotate('', xy=(time, portfolio_value),
+                             xytext=(time, portfolio_value + 2), # to flip the arrow upside down
                              arrowprops=arrowprops,
                              fontsize=12, color='green', ha='center', zorder=5)
             elif action == 'Sell':
-                plt.annotate('', xy=(time, portfolio_value + 9),
-                             xytext=(time, portfolio_value + 10),
+                plt.annotate('', xy=(time, portfolio_value),
+                             xytext=(time, portfolio_value + 1),
                              arrowprops=arrowprops,
                              fontsize=12, color='red', ha='center', zorder=5)
 
@@ -77,20 +77,23 @@ def plot_confusion_matrix(predicted_orders, best_orders, title, model_name):
     plt.title('Confusion Matrix')
     plt.savefig(f'logs/{model_name}_confusion_matrix_evaluate_{title}.png')
 
-def simulate_investment(model, dataloader, capital, shares_owned, test_df, backcandles, train_cols, decision_threshold, trade_decision_threshold, device, model_name, trade_allocation = 0.1):
+def simulate_investment(model, dataloader, capital, shares_owned, test_df, backcandles, train_cols, trade_decision_threshold, device, model_name, trade_allocation=0.1):
     model.lstm_model.eval()
     model.cnn_model.eval()
 
     predicted_orders = []
     best_orders = []
-    
+
     current_prices = []
     portfolio_values = []
     timestamps = []
     initial_capital = capital
     buy_sell_annotations = []
 
-    commission = 0.00
+    commission = 0.0
+    previous_BHS_pred = None
+    investment_amount = 0
+    price_when_invested = None
 
     bar = tqdm(enumerate(dataloader), total=len(dataloader))
     for step, (features, targets) in bar:
@@ -111,36 +114,53 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
         true_best_order = 1 if targets.cpu().numpy().flatten() > 0 else 0
 
         # Simulate investment based on model prediction
-        if BHS_pred == 1 and capital >= current_price :
-            # Calculate position size based on trade allocation
-            investment_amount = capital * trade_allocation
-            nb_share_affordable = int(investment_amount // current_price)
-            if nb_share_affordable > 0:
-                shares_owned += nb_share_affordable
-                total_cost = nb_share_affordable * current_price * (1 + commission)
-                capital -= total_cost
-                portfolio_value_temp = capital + shares_owned * current_price
-                buy_sell_annotations.append(['Buy', portfolio_value_temp, current_price, timestamps[-1]])
-                # print(f"Bought {nb_share_affordable} shares at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On: {timestamps[-1]}")
+        if BHS_pred == 1 and (previous_BHS_pred != 1 or previous_BHS_pred is None):
+            # If currently in a sell position, close it before buying
+            if investment_amount > 0 and price_when_invested is not None:
+                price_difference = (current_price - price_when_invested) / price_when_invested
+                revenue_generated = investment_amount * (1 + price_difference)
+                capital += revenue_generated
+                buy_sell_annotations.append(['Sell', capital, current_price, timestamps[-1]])
+                print(f"Closed Sell at {current_price:.2f}, Capital: {capital:.2f}, On: {timestamps[-1]}")
 
-        elif BHS_pred == 0 and shares_owned > 0:
-            # Sell all shares
-            total_revenue = shares_owned * current_price * (1 - commission)
-            capital += total_revenue
-            shares_sold = shares_owned
-            shares_owned = 0
-            portfolio_value_temp = capital
-            buy_sell_annotations.append(['Sell', portfolio_value_temp, current_price, timestamps[-1]])
-            # print(f"Sold {shares_sold} shares at {current_price:.2f}, Capital: {capital:.2f}, Shares Owned: {shares_owned}, On: {timestamps[-1]}")
+            # Buy using trade allocation of current capital
+            investment_amount = capital * trade_allocation
+            capital -= investment_amount
+            price_when_invested = current_price
+            buy_sell_annotations.append(['Buy', capital + investment_amount, current_price, timestamps[-1]])
+            print(f"Bought at {current_price:.2f}, Capital: {capital:.2f}, On: {timestamps[-1]}")
+
+        elif BHS_pred == 0 and (previous_BHS_pred == 1):
+            # If currently in a buy position, close it before selling
+            if investment_amount > 0 and price_when_invested is not None:
+                price_difference = (current_price - price_when_invested) / price_when_invested
+                revenue_generated = investment_amount * (1 + price_difference)
+                capital += revenue_generated
+                buy_sell_annotations.append(['Sell', capital, current_price, timestamps[-1]])
+                print(f"Closed Buy at {current_price:.2f}, Capital: {capital:.2f}, On: {timestamps[-1]}")
+
+            # Sell using trade allocation of current capital
+            investment_amount = capital * trade_allocation
+            capital -= investment_amount
+            price_when_invested = current_price
+            buy_sell_annotations.append(['Sell', capital + investment_amount, current_price, timestamps[-1]])
+            print(f"Sold at {current_price:.2f}, Capital: {capital:.2f}, On: {timestamps[-1]}")
 
         # Calculate portfolio value after each decision
-        portfolio_value = capital + shares_owned * current_price
+        if investment_amount > 0:
+            portfolio_value = capital + investment_amount * ((current_price - price_when_invested) / price_when_invested + 1)
+        else:
+            portfolio_value = capital
+
         portfolio_values.append(portfolio_value)
         current_prices.append(current_price)
 
         # Store predicted and true orders
         predicted_orders.append(BHS_pred)
         best_orders.append(true_best_order)
+
+        # Update previous BHS prediction
+        previous_BHS_pred = BHS_pred
 
     # Convert timestamps to a datetime format
     timestamps = pd.to_datetime(timestamps)
@@ -157,5 +177,6 @@ def simulate_investment(model, dataloader, capital, shares_owned, test_df, backc
     plot_portfolio_value(timestamps, portfolio_values, buy_sell_annotations_df, model_name=model_name)
     plot_actual_stock_price(timestamps, current_prices, buy_sell_annotations_df, model_name=model_name)
     plot_confusion_matrix(predicted_orders, best_orders, 'Global', model_name=model_name)
-    
+
     print(buy_sell_annotations_df)
+

@@ -21,32 +21,12 @@ BASE_URL = 'https://paper-api.alpaca.markets'
 
 api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
     
-def get_historical_data_alpaca(symbol, timeframe, start_date, end_date, limit=10000):
+def get_historical_data(symbol, timeframe, start_date, end_date, limit=10000):
     # Fetch data from Alpaca
     try:
         bars = api.get_bars(symbol, timeframe, start=start_date, end=end_date, limit=limit).df
         bars['time'] = pd.to_datetime(bars.index)
         return bars[['time', 'open', 'high', 'low', 'close', 'volume']]
-    except Exception as e:
-        print(f"Error while fetching historical data: {e}")
-        return None
-    
-def get_historical_data_yf(symbol, timeframe, start_date, end_date, limit=10000):
-    try:
-        # Fetch data from Yahoo Finance
-        bars = yf.download(tickers=symbol,start=start_date,end=end_date,interval=timeframe)
-
-        # Convert the index to datetime and reset for consistency
-        bars['time'] = pd.to_datetime(bars.index)
-
-        # Select and rename columns to match the expected structure
-        bars = bars.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume'})
-
-        # Ensure the final DataFrame has the required columns and order
-        bars = bars[['time', 'open', 'high', 'low', 'close', 'volume']]
-        bars.columns = bars.columns.get_level_values(0)
-        return bars
-
     except Exception as e:
         print(f"Error while fetching historical data: {e}")
         return None
@@ -120,7 +100,7 @@ def prepare_data_from_preloads(final_symbol, timeframe, is_filter, backcandles=6
     return final_df, final_df_scaled, train_cols
 
 def prepare_data(symbol, start_date, end_date, timeframe, is_filter=False, backcandles=60):
-    df = get_historical_data_yf(symbol, timeframe, start_date, end_date)
+    df = get_historical_data(symbol, timeframe, start_date, end_date)
 
     if is_filter :
         # Filter to keep only open market hours
@@ -149,19 +129,19 @@ def training_loaders(dataframe, dataset_scaled, backcandles, train_cols, buy_thr
     y = np.array(y)
 
     # Split data into training and validation datasets
-    train_size = max(int(len(X) * train_ratio), len(X) - 2176)
+    batch_size = 16
+    train_size = len(X) - 30 * batch_size
 
     # Convert data to PyTorch DataLoader objects
     train_dataset = TensorDataset(torch.tensor(X[:train_size], dtype=torch.float32), torch.tensor(y[:train_size], dtype=torch.float32))
     valid_dataset = TensorDataset(torch.tensor(X[train_size:], dtype=torch.float32), torch.tensor(y[train_size:], dtype=torch.float32))
 
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
-    valid_loader = DataLoader(valid_dataset, batch_size=16, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
     return train_loader, valid_loader
 
-
-def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols, buy_threshold, sell_threshold):
+def create_test_loader(dataframe, dataset_scaled, backcandles, train_cols):
     X_dataset = dataset_scaled[train_cols]
     y_dataset = dataframe['target'].values
 

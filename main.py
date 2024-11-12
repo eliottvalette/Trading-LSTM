@@ -54,20 +54,19 @@ if __name__ == "__main__":
         sell_threshold=config.sell_threshold)
 
     # Initialize LSTM model, optimizer, and scheduler
-    lstm_model = LSTMModel(embedding_dim=len(train_cols), 
+    lstm_model = LSTMModel(embedding_dim=len(train_cols),
                            hidden_dim = 128,
-                           num_layers = 2, 
-                           dropout_prob = 0.2)
+                           num_layers = 3, 
+                           dropout_prob = 0.5)
     lstm_model = lstm_model.to(device)
     
     optimizer_lstm = Adam(lstm_model.parameters(), lr=0.0001, weight_decay=1e-5)
-    scheduler_lstm = lr_scheduler.ReduceLROnPlateau(optimizer_lstm, mode='min', factor=0.5, patience=5)
+    scheduler_lstm = lr_scheduler.ReduceLROnPlateau(optimizer_lstm, mode='min', factor=0.5, patience=2)
 
     # Train the LSTM model
     trained_model_lstm, history_lstm = run_training(
         model=lstm_model,
         model_name='LSTM', 
-        decision_threshold=config.decision_threshold,
         train_loader=train_loader,
         valid_loader=valid_loader,
         optimizer=optimizer_lstm,
@@ -81,20 +80,17 @@ if __name__ == "__main__":
     
     # Initialize the CNN model, optimizer and scheduler
     cnn_model = CNNModel(embedding_dim=len(train_cols), 
-                           hidden_dim = 128,
-                           num_layers = 2, 
-                           dropout_prob = 0.2)
+                           dropout_prob = 0.25)
     
     cnn_model = cnn_model.to(device)
 
     optimizer_cnn = Adam(cnn_model.parameters(), lr=0.0001, weight_decay=1e-5)
-    scheduler_cnn = lr_scheduler.ReduceLROnPlateau(optimizer_cnn, mode='min', factor=0.5, patience=3)
+    scheduler_cnn = lr_scheduler.ReduceLROnPlateau(optimizer_cnn, mode='min', factor=0.5, patience=2)
 
     # Train the CNN model
     trained_model_cnn, history_cnn = run_training(
         model=cnn_model,
         model_name='CNN',
-        decision_threshold=config.decision_threshold,
         train_loader=train_loader,
         valid_loader=valid_loader,
         optimizer=optimizer_cnn,
@@ -107,21 +103,20 @@ if __name__ == "__main__":
     plot_training_metrics(history_cnn, 'CNN')
 
     # Initialize the LGBM model
-    gradboost_model = GradBOOSTModel(num_leaves=128, 
+    gradboost_model = GradBOOSTModel(num_leaves=256, 
                            max_depth=5, 
                            learning_rate=0.05, 
-                           n_estimators=100)
+                           n_estimators=1000)
 
     # Train the LGBM model
     trained_model_gradboost, history_gradboost = run_training_LGBM(
         model=gradboost_model,
         model_name='LGBM',
-        decision_threshold=config.decision_threshold,
         train_loader=train_loader,
         valid_loader=valid_loader,
         num_epochs=config.num_epochs,
         device=device)
-    
+        
     # Initialize the Ensembling model
     ensembling_model = EnsemblingModel(trained_model_lstm, trained_model_cnn, trained_model_gradboost)
 
@@ -142,9 +137,7 @@ if __name__ == "__main__":
     test_loader = create_test_loader(dataframe = test_df,
         dataset_scaled=test_dataset_scaled,
         backcandles=config.backcandles,
-        train_cols=train_cols,
-        buy_threshold=config.buy_threshold,
-        sell_threshold=config.sell_threshold)
+        train_cols=train_cols)
 
     # Run simulation
     trade_decision_threshold = 0.02
@@ -155,7 +148,6 @@ if __name__ == "__main__":
             test_df = test_df,
             backcandles=config.backcandles,
             train_cols=train_cols,
-            decision_threshold=config.decision_threshold, # to differenciate buy or sell signal for conf matrix
             trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
             device = device,
             model_name = 'ENSEMBLING')
