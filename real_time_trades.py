@@ -27,7 +27,7 @@ api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
 us_eastern = timezone('America/New_York')
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-print("Using device : ", device)
+print(f"Using device : {device} \n")
 
 # Set up constants and configurations
 config = Config()
@@ -78,7 +78,7 @@ def predict_action(data, model):
     return prediction
 
 # Function to confirm trade based on real-time last price before executing
-def auto_trade(symbol, model, trade_allocation, lookback, previous_action):
+def auto_trade(symbol, model, trade_allocation, lookback):
     timeframe = rest.TimeFrame.Minute
 
     # Get delayed data for the model to analyze
@@ -100,36 +100,50 @@ def auto_trade(symbol, model, trade_allocation, lookback, previous_action):
         # Determine the amount to trade based on trade_allocation and current capital
         account = api.get_account()
         capital = float(account.buying_power)
-        trade_amount = capital * trade_allocation
+        trade_amount = round(capital * trade_allocation, 2)
 
-        # Example decision logic based on prediction and latest price
-        if action == 1 and previous_action != 1:
-            print(f"Buying ${trade_amount:.2f} of {symbol}")
-            # Cancel selling order
-            api.cancel_all_orders()
+        # Check existing position
+        positions = api.list_positions()
+        current_position = next((p for p in positions if p.symbol == symbol), None)
+        current_side = current_position.side if current_position else None
 
-            # Place buy order with notional amount
+        print('\npositions : ', positions)
+
+        if action == 1 and (current_side != 'long'):
+            # If previous action was short or no position, close existing short position
+            if current_side == 'short':
+                api.close_position(symbol)
+
+            # Extract the current price
+            current_price = api.get_latest_trade('AAPL').price
+
+            print(f"Buying ${trade_amount:.2f} of {symbol} at {current_price}")
+
             api.submit_order(
                 symbol=symbol,
-                notional=trade_amount,  # Use dollar amount instead of qty
+                notional=trade_amount,
                 side='buy',
                 type='market',
-                time_in_force='gtc'
+                time_in_force='day'
             )
 
-        elif action == 0 and previous_action != 0:
-            print(f"Selling ${trade_amount:.2f} of {symbol}")
-            # Cancel buying order
-            api.cancel_all_orders(symbol=symbol)
+        elif action == 0 and (current_side != 'short'):
+            # If previous action was buy or no position, close existing long position
+            if current_side == 'long':
+                api.close_position(symbol)
 
-            # Place sell order with notional amount
+            # Extract the current price
+            current_price = api.get_latest_trade('AAPL').price
+
+            print(f"Shorting ${trade_amount:.2f} of {symbol} at {current_price}")
+
             api.submit_order(
                 symbol=symbol,
-                notional=trade_amount,  # Use dollar amount instead of qty
+                notional=trade_amount, 
                 side='sell',
                 type='market',
-                time_in_force='gtc'
-            )
+                time_in_force='day'
+            )    
 
 
 # Load individual models
@@ -157,7 +171,6 @@ while True :
     current_time = datetime.now(us_eastern).strftime('%Y-%m-%d %H %M')
     if past_time != current_time :
         past_time = current_time
-        auto_trade(symbol="AAPL", model=ensemble_model, trade_allocation=0.01, lookback = 30, previous_action = previous_action)
-        print("Trade Executed")
+        auto_trade(symbol="AAPL", model=ensemble_model, trade_allocation=0.01, lookback = 30)
     
     time.sleep(2)
