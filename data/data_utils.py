@@ -15,9 +15,11 @@ import numpy as np
 
 
 load_dotenv()
-API_KEY = os.getenv('ALPACA_API_KEY')
-SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
-BASE_URL = 'https://paper-api.alpaca.markets'
+API_KEY = os.getenv('ALPACA_API_KEY_V3')
+SECRET_KEY = os.getenv('ALPACA_SECRET_KEY_V3')
+BASE_URL = 'https://data.alpaca.markets/v2/stocks/bars'
+
+print(f"API_KEY:{API_KEY} SECRET_KEY:{SECRET_KEY}" )
 
 api = tradeapi.REST(API_KEY, SECRET_KEY, BASE_URL, api_version='v2')
     

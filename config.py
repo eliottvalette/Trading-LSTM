@@ -19,7 +19,7 @@ class Config:
         self.test_end_date = previous_day
         self.initial_capital = 10_000
         self.shares_owned = 0
-        self.num_epochs = 4
+        self.num_epochs = 20
         self.buy_threshold = 0.002
         self.sell_threshold = -0.002
         self.use_preloads = False

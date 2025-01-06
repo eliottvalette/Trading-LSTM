@@ -16,8 +16,8 @@ import time
 
 # Load environment variables
 load_dotenv()
-API_KEY = os.getenv('ALPACA_API_KEY')
-SECRET_KEY = os.getenv('ALPACA_SECRET_KEY')
+API_KEY = os.getenv('ALPACA_API_KEY_V2')
+SECRET_KEY = os.getenv('ALPACA_SECRET_KEY_V2')
 BASE_URL = 'https://paper-api.alpaca.markets'
 
 # Initialize Alpaca API client
