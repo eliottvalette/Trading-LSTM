@@ -33,10 +33,14 @@ def preload_historical_data(symbol) :
             limit= limit
             )
 
+    # remove first 15 rows
+    df = df.iloc[15:]
+
     df.to_csv(f'data/preloads/{symbol}_{start_date}_{end_date}_{timeframe}.csv', index=False)
 
-    # df_eng, _ = features_engineering(df, 30)
+    df_eng, _ = features_engineering(df, 30)
     # df_eng.to_csv(f'data/preloads/{symbol}_{start_date}_{end_date}_{timeframe}_yf_eng.csv', index=False)
 
 for symbol in symbols:
+    print(f"Preloading data for {symbol}")
     preload_historical_data(symbol)

@@ -22,4 +22,4 @@ class Config:
         self.num_epochs = 20
         self.buy_threshold = 0.002
         self.sell_threshold = -0.002
-        self.use_preloads = False
+        self.use_preloads = True

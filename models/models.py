@@ -142,9 +142,8 @@ class EnsemblingModel(nn.Module):
         # Stack predictions and perform manual majority voting
         predictions = torch.cat([lstm_prediction, cnn_prediction, gradboost_prediction], dim=1)  # Shape: [batch_size, num_models]
         
-        # Calculate majority vote by summing up predictions
-        vote_sums = predictions.sum(dim=1)  # Sum of votes along the model axis
-        majority_vote = (vote_sums >= 2).float()  # Majority if 2 or more models predict 1, else 0
+        # Calculate majority vote by summing up predictions but weight for CNN is 1, and for LSTM and GradBOOST is 2
+        majority_vote = (predictions * torch.tensor([2, 1, 2], device=device).float()).sum(dim=1) >= 3
 
         return majority_vote
     

@@ -151,8 +151,3 @@ if __name__ == "__main__":
             trade_decision_threshold=trade_decision_threshold, # to keep only confident signals for the simulation
             device = device,
             model_name = 'ENSEMBLING')
-
-
-    
-        
-    

@@ -36,7 +36,7 @@ def calculate_atr(data, window=14):
 
 def features_engineering(df, backcandles):
     # Baseline
-    df['close_pct_change'] = df['close'].pct_change().fillna(0).clip(lower=-10, upper=10)
+    df['close_pct_change'] = df['close'].pct_change().fillna(0).clip(lower=-10, upper=10)*100
 
     # Open
     df['open_pct_diff'] = (df['open'] - df['close']) / df['close'] * 100
@@ -70,7 +70,7 @@ def features_engineering(df, backcandles):
     df['ATR'] = calculate_atr(df)
 
     # Target
-    df['target'] = df['close_pct_change'].shift(-1)
+    df['target'] = df['close_pct_change'].shift(-15)
 
     # Small adjustments
     df.replace([np.inf, -np.inf], 0, inplace=True)
